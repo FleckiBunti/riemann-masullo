@@ -1450,7 +1450,14 @@ ordinary derivative at the character of frequency ξ is 2πiξ. -/
 theorem bruhatDiffSymbol_real (ξ : ℝ) (χ : PontryaginDual (Multiplicative ℝ))
     (hχ : ∀ x : ℝ, χ (Multiplicative.ofAdd x) = Real.fourierChar (ξ * x)) :
     bruhatDiffSymbol (bruhatDiffGenerator (ContinuousMonoidHom.id (Multiplicative ℝ))) χ =
-      2 * ↑Real.pi * Complex.I * (ξ : ℂ) := by sorry
+      2 * ↑Real.pi * Complex.I * (ξ : ℂ) := by
+  change deriv (fun t : ℝ ↦ (χ (1 * Multiplicative.ofAdd t) : ℂ)) 0 = _
+  simp only [one_mul, hχ]
+  have hZero : deriv (fun t ↦ (Real.fourierChar t : ℂ)) 0 = 2 * ↑Real.pi * Complex.I := by
+    simpa only [Real.fourierChar_apply', mul_zero, Circle.exp_zero, Circle.coe_one, mul_one]
+      using Real.deriv_fourierChar 0
+  simpa only [mul_zero, hZero, Complex.real_smul, mul_comm (ξ : ℂ)] using
+    deriv_comp_mul_left ξ (fun t ↦ (Real.fourierChar t : ℂ)) 0
 
 /-- Paper: Lemma D.1.6.13, p. 769. A character is an eigenfunction of a word
 of first derivatives, with eigenvalue the product of the individual symbols. -/
@@ -1567,8 +1574,11 @@ theorem bruhatDiffDegreeOne_frequency :
 frequency multiplied by 2πi. The frequency is identified by the character pairing. -/
 theorem bruhatDiffSymbol_generator (a : LCATopologicalLie G) (χ : PontryaginDual G)
     (r : ℝ) (hr : ∀ t : ℝ, Real.fourierChar (r * t) = χ (a (Multiplicative.ofAdd t))) :
-    bruhatDiffSymbol (bruhatDiffGenerator a) χ = 2 * ↑Real.pi * Complex.I * (r : ℂ) :=
-  by sorry
+    bruhatDiffSymbol (bruhatDiffGenerator a) χ = 2 * ↑Real.pi * Complex.I * (r : ℂ) := by
+  have h := bruhatDiffSymbol_real r (PontryaginDual.map a χ) (fun t ↦ (hr t).symm)
+  change deriv (fun t : ℝ ↦ (PontryaginDual.map a χ (1 * Multiplicative.ofAdd t) : ℂ)) 0 = _ at h
+  change deriv (fun t : ℝ ↦ (χ (1 * a (Multiplicative.ofAdd t)) : ℂ)) 0 = _
+  simpa only [one_mul, PontryaginDual.map_apply] using h
 
 /-- Paper: Lemma D.1.6.16, p. 770. On an elementary group a smooth function
 is Schwartz exactly when each symbol times each differentiated function is
