@@ -106,7 +106,16 @@ theorem mem_unitHalfOpenCube_one (x : Fin 1 → ℝ) :
 The torus volume is the pushforward of Lebesgue measure on the half-open unit cube. -/
 theorem map_volume_unitHalfOpenCube (N : ℕ) :
     (volume.restrict (unitHalfOpenCube N)).map (torusQuotient N) =
-      (volume : Measure (UnitAddTorus (Fin N))) := by sorry
+      (volume : Measure (UnitAddTorus (Fin N))) := by
+  have hcube : unitHalfOpenCube N = Set.pi univ fun _ ↦ Ico (0 : ℝ) 1 := by
+    ext x; simp [unitHalfOpenCube]
+  have hf : (torusQuotient N : (Fin N → ℝ) → UnitAddTorus (Fin N)) =
+      fun x i ↦ ((x i : ℝ) : UnitAddCircle) := rfl
+  rw [hcube, volume_pi, Measure.restrict_pi_pi, hf]
+  have hmk : MeasurePreserving ((↑) : ℝ → UnitAddCircle) (volume.restrict (Ico 0 1)) := by
+    rw [Measure.restrict_congr_set Ico_ae_eq_Ioc]
+    simpa using UnitAddCircle.measurePreserving_mk 0
+  exact (measurePreserving_pi _ (fun _ ↦ volume) fun _ ↦ hmk).map_eq
 
 /-- Paper: §B.5.2.1, p. 627.
 Riemann integrability on a torus with Haar probability is expressed by boundedness and
