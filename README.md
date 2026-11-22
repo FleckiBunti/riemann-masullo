@@ -101,11 +101,12 @@ where the details have not been posted. They did not come from this formalizatio
 reached that part of the paper. The draft is also unfinished by its author's own account:
 Chapter 13, which should deduce GRH from the trace formula, does not yet state its main theorem.
 
-This is what the three aims above are for. When the formalization reaches a part that does not
-hold as printed, a repair that holds up is stated and proved in its place and marked as such,
-and what cannot be repaired is written down as a gap. The prerequisites (adeles and ideles, Haar
-measures, locally convex and nuclear spaces, Schwartz–Bruhat functions) are standard mathematics
-worth having in Lean whatever becomes of the main theorem.
+This is what the three aims above are for: when the formalization reaches a part that does not
+hold as printed, the work is to repair it if it can be repaired, and otherwise to write down
+the gap exactly. How the printed original and its repairs are recorded side by side is still
+being worked out. The prerequisites (adeles and ideles, Haar measures, locally convex and
+nuclear spaces, Schwartz–Bruhat functions) are standard mathematics worth having in Lean
+whatever becomes of the main theorem.
 
 ## The paper
 

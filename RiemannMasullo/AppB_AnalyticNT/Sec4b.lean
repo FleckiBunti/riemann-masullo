@@ -9,7 +9,9 @@ public import RiemannMasullo.ForMathlib.MeasureTheory.Group.Arithmetic
 public import RiemannMasullo.ForMathlib.NumberTheory.NumberField.Completion.FinitePlace
 public import Mathlib.Analysis.Meromorphic.Divisor
 public import Mathlib.NumberTheory.Harmonic.EulerMascheroni
+import all RiemannMasullo.AppB_AnalyticNT.Sec2
 import Mathlib.Analysis.SpecialFunctions.FrullaniIntegral
+import Mathlib.Topology.Algebra.IsOpenUnits
 import all RiemannMasullo.AppD_SchwartzBruhat.Sec3a
 
 /-!
@@ -379,7 +381,66 @@ are absolutely summable over the finite places and positive exponents.
 Deviation: Ramified Euler factors contribute zero. -/
 theorem summable_heckeExplicitPrimeTerms (χ : U[F]) (f : 𝓢(ℝ, ℂ))
     (_hf : ExponentialDecay f) :
-    Summable (fun j ↦ ‖primeTerm(χ, f) j‖) := by sorry
+    Summable (fun j ↦ ‖primeTerm(χ, f) j‖) := by
+  obtain ⟨g, hg⟩ := exponentialDecay_weighted_schwartz f _hf 3
+  obtain ⟨h, hh⟩ := exponentialDecay_weighted_schwartz f _hf (-3)
+  let C := SchwartzMap.seminorm ℂ 0 0 g + SchwartzMap.seminorm ℂ 0 0 h
+  have hdecay (x : ℝ) : ‖f x‖ + ‖f (-x)‖ ≤ C * Real.exp (-(3 * x)) := by
+    rw [Real.exp_neg, ← div_eq_mul_inv, le_div_iff₀ (Real.exp_pos _), add_mul]
+    have hg' := g.norm_le_seminorm ℂ x
+    have hh' := h.norm_le_seminorm ℂ (-x)
+    rw [hg, norm_mul, Complex.norm_real, Real.norm_of_nonneg (Real.exp_nonneg _)] at hg'
+    simp only [hh, neg_mul_neg, norm_mul, Complex.norm_real,
+      Real.norm_of_nonneg (Real.exp_nonneg _)] at hh'
+    simpa only [mul_comm] using add_le_add hg' hh'
+  -- Index the majorant by the corresponding prime-power ideals.
+  let I (j : Primes(F) × ℕ) := j.1.asIdeal ^ (j.2 + 1)
+  have hI : Injective I := by
+    rintro ⟨v, n⟩ ⟨w, k⟩ he
+    change v.asIdeal ^ (n + 1) = w.asIdeal ^ (k + 1) at he
+    have hd : v.asIdeal ∣ w.asIdeal := v.prime.dvd_of_dvd_pow
+      (he ▸ dvd_pow_self _ (Nat.succ_ne_zero n))
+    have hvw : v = w := HeightOneSpectrum.ext
+      (w.isMaximal.eq_of_le v.isPrime.ne_top (Ideal.dvd_iff_le.mp hd)).symm
+    subst w
+    have hN := congrArg (Ideal.absNorm : Ideal (𝓞 F) → ℕ) he
+    simp only [map_pow] at hN
+    have hn := Nat.pow_right_injective (NumberField.HeightOneSpectrum.one_lt_absNorm v) hN
+    exact Prod.ext rfl (Nat.succ.inj hn)
+  have hsum := (summable_absNorm_rpow F (r := 2) (by norm_num)).comp_injective hI
+  refine (hsum.mul_left C).of_nonneg_of_le (fun _ ↦ norm_nonneg _) ?_
+  rintro ⟨v, k⟩
+  have hq : 1 < q(v) := by exact_mod_cast NumberField.HeightOneSpectrum.one_lt_absNorm v
+  have hlog := (Real.log_pos hq).le
+  let x := ((k + 1 : ℕ) : ℝ) * Real.log q(v)
+  have hx : Real.log q(v) ≤ x := by
+    dsimp [x]
+    push_cast
+    nlinarith [mul_nonneg (Nat.cast_nonneg (α := ℝ) k) hlog]
+  have hfactor : Real.log q(v) * Real.exp (-x / 2) ≤ Real.exp x :=
+    (mul_le_of_le_one_right hlog (Real.exp_le_one_iff.mpr (by linarith))).trans
+      (hx.trans (by linarith [Real.add_one_le_exp x]))
+  change ‖(if _ then _ else (0 : ℂ))‖ ≤ C * ((I (v, k)).absNorm : ℝ) ^ (-(2 : ℝ))
+  split_ifs
+  · rw [norm_mul, Complex.norm_real, Real.norm_of_nonneg (mul_nonneg hlog (Real.exp_nonneg _))]
+    calc
+      _ ≤ (Real.log q(v) * Real.exp (-x / 2)) * (‖f x‖ + ‖f (-x)‖) := by
+        apply mul_le_mul_of_nonneg_left _ (mul_nonneg hlog (Real.exp_nonneg _))
+        simpa only [norm_mul, norm_pow, norm_ideleClassNormTwist_zero_localValue, one_pow, one_mul]
+          using norm_add_le ((χ₀(χ).localValue v) ^ (k + 1) * f x)
+            ((χ₀(χ⁻¹).localValue v) ^ (k + 1) * f (-x))
+      _ ≤ Real.exp x * (C * Real.exp (-(3 * x))) :=
+        mul_le_mul hfactor (hdecay x) (by positivity) (Real.exp_nonneg _)
+      _ = C * Real.exp (x + -(3 * x)) := by rw [Real.exp_add]; ring
+      _ = _ := by
+        change _ = C * (((v.asIdeal ^ (k + 1)).absNorm : ℕ) : ℝ) ^ (-(2 : ℝ))
+        rw [map_pow, Nat.cast_pow, Real.rpow_def_of_pos (pow_pos (zero_lt_one.trans hq) _),
+          Real.log_pow]
+        dsimp [x]
+        ring_nf
+  · rw [norm_zero]
+    exact mul_nonneg (add_nonneg (apply_nonneg _ _) (apply_nonneg _ _))
+      (Real.rpow_nonneg (Nat.cast_nonneg _) _)
 
 /-- Paper: Theorem B.4.2.2, p. 616. The centered divisor sum equals the
 discriminant–conductor term, minus the prime-power series, plus the gamma terms.
@@ -553,7 +614,19 @@ additive principal value for the standard character is ordinary multiplicative i
 theorem finiteConnesPrincipalValue_one_of_apply_zero (v : Primes(F))
     (f : 𝒮ₐ(v.adicCompletion F)) (_hf : addTest(f) 0 = 0) :
     finiteConnesPrincipalValue v 1 f =
-      ∫ u : (v.adicCompletion F)ˣ, addTest(f) u.val ∂μ𝔭(v) := by sorry
+      ∫ u : (v.adicCompletion F)ˣ, addTest(f) u.val ∂μ𝔭(v) := by
+  have hT := ((exists_finiteConnesPrincipalValue v 1).choose_spec f).2
+  have hK := (finiteLogFourier_eq_neg_haar v f _hf).2.2
+  have hV : V𝔭(v) ≠ 0 := by
+    rw [finiteLocalMultiplicativeTamagawaMeasure_integerUnits, ENNReal.toReal_ne_zero]
+    refine ⟨ENNReal.inv_ne_zero.mpr ENNReal.ofReal_ne_top, ENNReal.inv_ne_top.mpr ?_⟩
+    refine (ENNReal.ofReal_pos.mpr (Real.sqrt_pos.mpr (pow_pos ?_ _))).ne'
+    exact_mod_cast (NumberField.HeightOneSpectrum.one_lt_absNorm v).trans' zero_lt_one
+  change finiteConnesPrincipalValue v 1 f = _ at hT
+  simp only [Units.val_one, norm_one, Real.sqrt_one, ENNReal.ofReal_one, one_smul,
+    one_mul] at hT
+  rw [hT, hK, mul_div, neg_mul_neg]
+  exact mul_div_cancel_left₀ _ (Complex.ofReal_ne_zero.mpr hV)
 
 /-- Paper: Definition B.4.4.1(1), p. 619. The archimedean Fourier pairing
 defines a continuous linear functional on additive tests. -/
@@ -690,7 +763,70 @@ theorem realConnesWeilPrincipalValue_of_apply_one_zero (w : InfinitePlace F)
     let μ := infiniteLocalMultiplicativeTamagawaMeasure F w
     (infiniteConnesWeilPrincipalValue w) f =
       (1 / 2 : ℂ) * ∫ u : w.Completionˣ,
-        f.val u * (Real.sqrt ‖u.val‖ : ℂ) / ((‖1 - u.val‖ : ℝ) : ℂ) ∂μ := by sorry
+        f.val u * (Real.sqrt ‖u.val‖ : ℂ) / ((‖1 - u.val‖ : ℝ) : ℂ) ∂μ := by
+  intro μ
+  let : BorelSpace w.Completion := ⟨rfl⟩
+  let : BorelSpace w.Completionˣ := borelSpace_units_of_continuousInv₀ _
+  let r := InfinitePlace.Completion.ringEquivRealOfIsReal _hw
+  let e := InfinitePlace.Completion.isometryEquivRealOfIsReal _hw
+  have hval := (IsOpenUnits.isOpenEmbedding_unitsVal (M := w.Completion)).measurableEmbedding
+  have hA := (exists_infiniteWeilTestMap w).choose_spec f
+  have hmult : w.mult = 1 := by simp [InfinitePlace.mult, _hw]
+  let Fz : w.Completion → ℂ := Function.extend Units.val (f.val : _ → ℂ) (fun _ ↦ 0)
+  have hFu (u : w.Completionˣ) : Fz u.val = f.val u := Units.val_injective.extend_apply _ _ u
+  have hFz (y : w.Completion) (hy : y ∉ range (Units.val : w.Completionˣ → w.Completion)) :
+      Fz y = 0 := by
+    simp only [Fz, Function.extend_apply' _ _ _ (fun ⟨u, hu⟩ ↦ hy ⟨u, hu⟩)]
+  have h0 : addTest((exists_infiniteWeilTestMap w).choose f) 0 = 0 := by
+    rw [hA]
+    change Fz (1 + 0) / _ = 0
+    rw [add_zero, ← Units.val_one, hFu, _hf, zero_div]
+  change infiniteConnesPrincipalValue w ((exists_infiniteWeilTestMap w).choose f) = _
+  rw [realConnesPrincipalValue_of_apply_zero w _hw _ h0]
+  congr 1
+  let G : w.Completion → ℂ := fun y ↦ Fz y / (Real.sqrt ‖y‖ : ℂ) / ((‖y - 1‖ : ℝ) : ℂ)
+  -- Translation invariance moves the singularity from zero to one.
+  have htr : ∫ x, addTest((exists_infiniteWeilTestMap w).choose f) x / ((‖x‖ : ℝ) : ℂ) ∂ν∞(w) =
+      ∫ y, G y ∂ν∞(w) := by
+    have hG : (fun x ↦ addTest((exists_infiniteWeilTestMap w).choose f) x / ((‖x‖ : ℝ) : ℂ)) =
+        fun x ↦ G (1 + x) := by
+      funext x
+      rw [hA]
+      change Fz (1 + x) / ((Real.sqrt (‖1 + x‖ ^ w.mult) : ℂ)) / _ =
+        Fz (1 + x) / (Real.sqrt ‖1 + x‖ : ℂ) / ((‖1 + x - 1‖ : ℝ) : ℂ)
+      rw [hmult, pow_one, add_sub_cancel_left]
+    rw [hG, infiniteLocalAdditiveTamagawaMeasure, dite_eq_left _hw]
+    let m := e.symm.toHomeomorph.toMeasurableEquiv
+    rw [show (r.symm : ℝ → w.Completion) = m from rfl, integral_map_equiv, integral_map_equiv]
+    have hm (t : ℝ) : 1 + m t = m (1 + t) := by
+      change 1 + r.symm t = r.symm (1 + t)
+      rw [map_add, map_one]
+    simp_rw [hm]
+    exact integral_add_left_eq_self (fun t ↦ G (m t)) 1
+  rw [htr]
+  -- The multiplicative measure is the additive one with density `1 / ‖y‖` on units.
+  let d : w.Completion → ENNReal := fun x ↦ (↑(‖x‖₊ ^ w.mult) : ENNReal)⁻¹
+  have hd : Measurable d := by fun_prop
+  simp only [← hFu]
+  change _ = ∫ u, _ ∂(ν∞(w).withDensity d).comap Units.val
+  rw [← hval.integral_map (g := fun y ↦ Fz y * (Real.sqrt ‖y‖ : ℂ) / ((‖1 - y‖ : ℝ) : ℂ)),
+    hval.map_comap, setIntegral_withDensity_eq_setIntegral_toReal_smul hd ?_ _
+      hval.measurableSet_range,
+    ← setIntegral_eq_integral_of_forall_compl_eq_zero (s := range Units.val)
+      (fun y hy ↦ by simp only [G, hFz y hy, zero_div])]
+  · refine setIntegral_congr_fun hval.measurableSet_range fun y ⟨u, hu⟩ ↦ ?_
+    have hn : 0 < ‖y‖ := norm_pos_iff.mpr (hu ▸ u.ne_zero)
+    simp only [G, d, hmult, pow_one]
+    rw [ENNReal.toReal_inv, ENNReal.coe_toReal, coe_nnNorm, Complex.real_smul, norm_sub_rev]
+    have hs : (Real.sqrt ‖y‖ : ℂ) ≠ 0 := by exact_mod_cast (Real.sqrt_pos.mpr hn).ne'
+    have hsq : (‖y‖ : ℂ) = (Real.sqrt ‖y‖ : ℂ) * (Real.sqrt ‖y‖ : ℂ) := by
+      exact_mod_cast (Real.mul_self_sqrt hn.le).symm
+    push_cast
+    rw [hsq]
+    field_simp
+  · refine ae_restrict_of_forall_mem hval.measurableSet_range fun y ⟨u, hu⟩ ↦ ?_
+    simp only [d, hmult, pow_one]
+    exact ENNReal.inv_lt_top.mpr (by simp [← hu])
 
 local notation "finiteWeilIntegrand(" v ", " f ")" =>
   (fun u : (HeightOneSpectrum.adicCompletion F v)ˣ ↦
@@ -765,7 +901,17 @@ adds a multiple of evaluation at one to the multiplicative principal value. -/
 theorem finiteConnesWeilPrincipalValue_changeCharacter (v : Primes(F))
     (a : (v.adicCompletion F)ˣ) (f : 𝒟((v.adicCompletion F)ˣ)) :
     finiteConnesWeilPrincipalValue v a f = finiteConnesWeilPrincipalValue v 1 f +
-      ((V𝔭(v) * Real.log ‖a.val‖ / Real.log q(v) : ℝ) : ℂ) * f.val 1 := by sorry
+      ((V𝔭(v) * Real.log ‖a.val‖ / Real.log q(v) : ℝ) : ℂ) * f.val 1 := by
+  let A := (exists_finiteWeilTestMap v).choose
+  have hunit := Units.val_injective.extend_apply f.val (fun _ ↦ 0)
+    (1 : (v.adicCompletion F)ˣ)
+  have hzero : addTest(A f) 0 = f.val 1 := by
+    have h := (exists_finiteWeilTestMap v).choose_spec f 0
+    simp only [add_zero, norm_one, Real.sqrt_one, Complex.ofReal_one, div_one] at h
+    exact h.trans hunit
+  exact (finiteConnesPrincipalValue_changeCharacter v a (A f)).trans
+    (congrArg (fun z : ℂ ↦ finiteConnesWeilPrincipalValue v 1 f +
+      ((V𝔭(v) * Real.log ‖a.val‖ / Real.log q(v) : ℝ) : ℂ) * z) hzero)
 
 -- TODO(paper-gap): In the proof on p. 623 (footnote 24), the annihilator of
 -- the maximal ideal is the inverse maximal ideal times the inverse different.
