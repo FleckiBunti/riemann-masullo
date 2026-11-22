@@ -1,6 +1,7 @@
 module
 
 public import Mathlib.Analysis.Complex.Hadamard
+public import Mathlib.Analysis.Complex.MeanValue
 public import Mathlib.Analysis.Fourier.AddCircleMulti
 public import RiemannMasullo.Ch03_IdelicZeta.Sec2
 
@@ -423,6 +424,99 @@ theorem stronglyRecurrentOn_of_subset {a b : ℝ} (hab : a < b) {f : ℂ → ℂ
 -- any disc contained in the strip, and disc-by-disc recurrence need not give simultaneous return
 -- times on that segment. The report gives a Runge approximation counterexample.
 
+open Metric Real in
+/-- The square of the norm at the centre is at most the circle average of the squared norm. -/
+private theorem sq_norm_le_circleAverage_sq_norm {g : ℂ → ℂ} {c : ℂ} {r ρ : ℝ}
+    (hg : DifferentiableOn ℂ g (ball c r)) (hρ : ρ ∈ Ioo 0 r) :
+    ‖g c‖ ^ 2 ≤ circleAverage (fun z ↦ ‖g z‖ ^ 2) c ρ := by
+  have hd : DiffContOnCl ℂ (fun z ↦ g z ^ 2) (ball c |ρ|) := by
+    rw [abs_of_pos hρ.1]
+    exact (hg.pow 2).diffContOnCl_ball (closedBall_subset_ball hρ.2)
+  have h := norm_circleAverage_le_circleAverage_norm (f := fun z ↦ g z ^ 2) (c := c) (R := ρ)
+  rw [hd.circleAverage] at h
+  simpa only [norm_pow] using h
+
+open Metric Real in
+/-- On a circle inside the disc, the angular integral of the squared norm over `(-π, π)` is at
+least `2π` times the squared norm at the centre. -/
+private theorem integral_Ioo_sq_norm_circleMap_ge {g : ℂ → ℂ} {c : ℂ} {r ρ : ℝ}
+    (hg : DifferentiableOn ℂ g (ball c r)) (hρ : ρ ∈ Ioo 0 r) :
+    2 * π * ‖g c‖ ^ 2 ≤ ∫ θ in Ioo (-π) π, ‖g (circleMap c ρ θ)‖ ^ 2 := by
+  set F : ℝ → ℝ := fun θ ↦ ‖g (circleMap c ρ θ)‖ ^ 2
+  have hper : F.Periodic (2 * π) := fun θ ↦ by simp only [F, periodic_circleMap c ρ θ]
+  have hint := hper.intervalIntegral_add_eq (-π) 0
+  rw [show -π + 2 * π = π by ring, zero_add] at hint
+  rw [← integral_Ioc_eq_integral_Ioo, ← intervalIntegral.integral_of_le (by linarith [pi_pos]),
+    hint]
+  have h := sq_norm_le_circleAverage_sq_norm hg hρ
+  rw [circleAverage_def, smul_eq_mul] at h
+  have h2π : 0 < 2 * π := two_pi_pos
+  calc 2 * π * ‖g c‖ ^ 2 ≤ 2 * π * ((2 * π)⁻¹ * ∫ θ in 0..2 * π, F θ) := by gcongr
+    _ = ∫ θ in 0..2 * π, F θ := by field_simp
+
+open Metric Real in
+/-- On the open disc, the squared norm of a holomorphic function has integral at least
+`π r²` times its squared norm at the centre. -/
+private theorem lintegral_ball_sq_norm_ge {g : ℂ → ℂ} {c : ℂ} {r : ℝ} (hr : 0 < r)
+    (hg : DifferentiableOn ℂ g (ball c r)) :
+    ENNReal.ofReal (π * r ^ 2 * ‖g c‖ ^ 2) ≤
+      ∫⁻ z in ball c r, ENNReal.ofReal (‖g z‖ ^ 2) := by
+  set G : ℂ → ℝ≥0∞ := fun z ↦ ENNReal.ofReal (‖g z‖ ^ 2)
+  set A : Set ℝ := Ioo 0 r
+  set B : Set ℝ := Ioo (-π) π
+  have hpolar (p : ℝ × ℝ) : c + Complex.polarCoord.symm p = circleMap c p.1 p.2 := by
+    simp only [Complex.polarCoord_symm_apply, circleMap, Complex.exp_mul_I,
+      ← Complex.ofReal_cos, ← Complex.ofReal_sin]
+  have hmem {ρ : ℝ} (hρ : ρ ∈ A) (θ : ℝ) : circleMap c ρ θ ∈ ball c r := by
+    rw [mem_ball, dist_eq_norm, circleMap_sub_center, norm_circleMap_zero, abs_of_pos hρ.1]
+    exact hρ.2
+  have hcirc : Continuous (fun p : ℝ × ℝ ↦ circleMap c p.1 p.2) := by
+    unfold circleMap; fun_prop
+  have hcont : ContinuousOn (fun p : ℝ × ℝ ↦ p.1 * ‖g (circleMap c p.1 p.2)‖ ^ 2) (A ×ˢ B) :=
+    continuous_fst.continuousOn.mul ((hg.continuousOn.norm.pow 2).comp hcirc.continuousOn
+      fun p hp ↦ hmem hp.1 p.2)
+  have hAB : MeasurableSet (A ×ˢ B) := measurableSet_Ioo.prod measurableSet_Ioo
+  calc ENNReal.ofReal (π * r ^ 2 * ‖g c‖ ^ 2)
+      = ∫⁻ ρ in A, ENNReal.ofReal (ρ * (2 * π * ‖g c‖ ^ 2)) := by
+        rw [← ofReal_integral_eq_lintegral_ofReal]
+        · congr 1
+          rw [integral_mul_const, ← integral_Ioc_eq_integral_Ioo,
+            ← intervalIntegral.integral_of_le hr.le, integral_id]
+          ring
+        · exact (continuous_id.mul continuous_const).integrableOn_Icc.mono_set Ioo_subset_Icc_self
+        · filter_upwards [ae_restrict_mem measurableSet_Ioo] with ρ hρ
+          have := hρ.1.le
+          positivity
+    _ ≤ ∫⁻ ρ in A, ∫⁻ θ in B, ENNReal.ofReal (ρ * ‖g (circleMap c ρ θ)‖ ^ 2) := by
+        refine lintegral_mono_ae ?_
+        filter_upwards [ae_restrict_mem measurableSet_Ioo] with ρ hρ
+        have hF : Continuous fun θ ↦ ρ * ‖g (circleMap c ρ θ)‖ ^ 2 :=
+          continuous_const.mul ((hg.continuousOn.norm.pow 2).comp_continuous
+            (continuous_circleMap c ρ) (hmem hρ))
+        rw [← ofReal_integral_eq_lintegral_ofReal
+          (hF.integrableOn_Icc.mono_set Ioo_subset_Icc_self)
+          (Eventually.of_forall fun θ ↦ by have := hρ.1.le; positivity),
+          integral_const_mul]
+        exact ENNReal.ofReal_le_ofReal
+          (mul_le_mul_of_nonneg_left (integral_Ioo_sq_norm_circleMap_ge hg hρ) hρ.1.le)
+    _ = ∫⁻ p in A ×ˢ B, ENNReal.ofReal (p.1 * ‖g (circleMap c p.1 p.2)‖ ^ 2) := by
+        rw [Measure.volume_eq_prod, ← Measure.prod_restrict, lintegral_prod]
+        rw [Measure.prod_restrict]
+        exact ENNReal.measurable_ofReal.comp_aemeasurable (hcont.aemeasurable hAB)
+    _ = ∫⁻ p in A ×ˢ B, ENNReal.ofReal p.1 • (ball c r).indicator G
+          (c + Complex.polarCoord.symm p) := by
+        refine setLIntegral_congr_fun hAB fun p hp ↦ ?_
+        rw [hpolar, indicator_of_mem (hmem hp.1 p.2), smul_eq_mul, ← ENNReal.ofReal_mul hp.1.1.le]
+    _ ≤ ∫⁻ p in polarCoord.target, ENNReal.ofReal p.1 • (ball c r).indicator G
+          (c + Complex.polarCoord.symm p) := by
+        refine lintegral_mono_set ?_
+        exact prod_mono Ioo_subset_Ioi_self subset_rfl
+    _ = ∫⁻ z in ball c r, G z := by
+        rw [Complex.lintegral_comp_polarCoord_symm (fun w ↦ (ball c r).indicator G (c + w)),
+          lintegral_add_left_eq_self, lintegral_indicator measurableSet_ball]
+
+-- Retain the hypotheses of the existing signature that the proof does not use.
+set_option linter.unusedVariables false in
 /-- Paper: Lemma B.5.3.5, p. 633.
 If the squared area error integrated over the closure of the open set is below
 `π * δ² * X²`, the uniform error on the compact set is below `X`.
@@ -434,7 +528,45 @@ theorem areaApproximation_subset_verticalReturnTimes {a b : ℝ} (hab : a < b) {
     (hKU : K ⊆ U) {δ : ℝ} (hδ : δ = ⨅ z : K, Metric.infDist (z : ℂ) Uᶜ)
     (hδpos : 0 < δ) {T X : ℝ} (hT : 0 < T) (hX : 0 < X) :
     {t ∈ Icc (-T) T | (∫ z in closure U, ‖f (z + (t : ℂ) * Complex.I) - f z‖ ^ 2) <
-      Real.pi * δ ^ 2 * X ^ 2} ⊆ Icc (-T) T ∩ verticalReturnTimes f K X := by sorry
+      Real.pi * δ ^ 2 * X ^ 2} ⊆ Icc (-T) T ∩ verticalReturnTimes f K X := by
+  rintro t ⟨htT, hI⟩
+  refine ⟨htT, ?_⟩
+  set g : ℂ → ℂ := fun z ↦ f (z + (t : ℂ) * Complex.I) - f z
+  set I := ∫ z in closure U, ‖g z‖ ^ 2
+  have hshift : MapsTo (fun z : ℂ ↦ z + (t : ℂ) * Complex.I) (verticalStrip a b)
+      (verticalStrip a b) := fun z hz ↦ by
+    simpa [Complex.HadamardThreeLines.verticalStrip] using hz
+  have hgd : DifferentiableOn ℂ g (verticalStrip a b) :=
+    (hf.comp (differentiableOn_id.add_const _) hshift).sub hf
+  have hUs : U ⊆ verticalStrip a b := subset_closure.trans hUI
+  have hgint : IntegrableOn (fun z ↦ ‖g z‖ ^ 2) (closure U) :=
+    ((hgd.continuousOn.mono hUI).norm.pow 2).integrableOn_compact hUcompact
+  have hπδ : 0 < Real.pi * δ ^ 2 := by positivity
+  have hbound (z : ℂ) (hz : z ∈ K) : ‖g z‖ ^ 2 * (Real.pi * δ ^ 2) ≤ I := by
+    have hball : Metric.ball z δ ⊆ U := by
+      intro w hw
+      by_contra hwU
+      have h1 : δ ≤ Metric.infDist z Uᶜ := hδ ▸
+        ciInf_le ⟨0, by rintro _ ⟨w, rfl⟩; exact Metric.infDist_nonneg⟩ (⟨z, hz⟩ : K)
+      have h2 := Metric.infDist_le_dist_of_mem (x := z) (show w ∈ Uᶜ from hwU)
+      rw [Metric.mem_ball, dist_comm] at hw
+      linarith
+    have hsub : Metric.ball z δ ⊆ closure U := hball.trans subset_closure
+    have harea := lintegral_ball_sq_norm_ge hδpos (hgd.mono (hball.trans hUs))
+    rw [← ofReal_integral_eq_lintegral_ofReal (hgint.mono_set hsub)
+      (Eventually.of_forall fun _ ↦ by positivity),
+      ENNReal.ofReal_le_ofReal_iff (integral_nonneg fun _ ↦ by positivity)] at harea
+    calc ‖g z‖ ^ 2 * (Real.pi * δ ^ 2) = Real.pi * δ ^ 2 * ‖g z‖ ^ 2 := by ring
+      _ ≤ ∫ w in Metric.ball z δ, ‖g w‖ ^ 2 := harea
+      _ ≤ I := setIntegral_mono_set hgint (Eventually.of_forall fun _ ↦ by positivity)
+          (Eventually.of_forall hsub)
+  have hM : √(I / (Real.pi * δ ^ 2)) < X := by
+    rw [Real.sqrt_lt' hX, div_lt_iff₀ hπδ]
+    linarith
+  show (⨆ z : K, (‖g z‖₊ : ℝ≥0∞)) < ENNReal.ofReal X
+  refine lt_of_le_of_lt (iSup_le fun z ↦ ?_) ((ENNReal.ofReal_lt_ofReal_iff hX).mpr hM)
+  rw [← ENNReal.ofReal_coe_nnreal, coe_nnNorm]
+  exact ENNReal.ofReal_le_ofReal (Real.le_sqrt_of_sq_le ((le_div_iff₀ hπδ).mpr (hbound z z.2)))
 
 end Recurrence
 
