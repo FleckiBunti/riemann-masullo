@@ -276,7 +276,33 @@ local notation "Ψ[" ω "]" => modulatedQuotientIsotypicProjector m γ hm hγ μ
 /-- Paper: Notation 4.5.1.1, p. 204. The normalized average fixes every
 function in the norm-one isotype. -/
 theorem modulatedQuotientIsotypicProjector_fix (ω : PontryaginDual K) (f : Sχ[ω]) :
-    Ψ[ω] f.val = f.val := by sorry
+    Ψ[ω] f.val = f.val := by
+  have : CompactSpace K := isCompact_iff_compactSpace.mp hm.isCompact_ker
+  have : IsClosed (Γ : Set G) := modulatedCyclicSubgroup_closed m γ hγ
+  have hμ : (μ₁.real univ : ℂ) ≠ 0 :=
+    Complex.ofReal_ne_zero.mpr (measureReal_univ_pos (μ := μ₁)).ne'
+  have hf := (mem_actionIsotype _ ω f.val).mp f.property
+  -- Rewriting under `f.val` is very slow here, so the steps are explicit terms.
+  have hpt (u : K) (z : Q) : (ω u : ℂ) * f.val (qK u * z) = f.val z := by
+    have h : schwartzBruhatTranslationAction (G := Q) (qK u⁻¹) f.val z =
+        (ω u⁻¹ : ℂ) * f.val z :=
+      congrArg (fun g : S ↦ g z) (hf u⁻¹)
+    have e : (qK u⁻¹)⁻¹ * z = qK u * z := by rw [map_inv, inv_inv]
+    have h' : f.val (qK u * z) = (ω u⁻¹ : ℂ) * f.val z :=
+      (congrArg (fun x ↦ f.val x) e).symm.trans
+        ((schwartzBruhatTranslationAction_apply (G := Q) (qK u⁻¹) z f.val).symm.trans h)
+    have hω : (ω u : ℂ) * (ω u⁻¹ : ℂ) = 1 := by
+      rw [← Circle.coe_mul, ← map_mul, mul_inv_cancel, map_one, Circle.coe_one]
+    exact (congrArg (fun c ↦ (ω u : ℂ) * c) h').trans
+      ((mul_assoc _ _ _).symm.trans ((congrArg (· * f.val z) hω).trans (one_mul _)))
+  refine Subtype.ext (funext fun z ↦ ?_)
+  change (μ₁.real univ : ℂ)⁻¹ * ∫ u : K, (ω u : ℂ) * f.val (qK u * z) ∂μ₁ = f.val z
+  have hint : ∫ u : K, (ω u : ℂ) * f.val (qK u * z) ∂μ₁ = (μ₁.real univ : ℂ) * f.val z :=
+    (congrArg (fun g : K → ℂ ↦ ∫ u, g u ∂μ₁) (funext fun u ↦ hpt u z)).trans
+      ((integral_const _).trans (Complex.real_smul ..))
+  exact (congrArg (fun c ↦ (μ₁.real univ : ℂ)⁻¹ * c) hint).trans
+    ((mul_assoc _ _ _).symm.trans ((congrArg (· * f.val z) (inv_mul_cancel₀ hμ)).trans
+      (one_mul _)))
 
 /-- Paper: Notation 4.5.1.1 and Equation (4.5.1.9), p. 204. The projector
 has range exactly the norm-one isotype on the quotient. -/
