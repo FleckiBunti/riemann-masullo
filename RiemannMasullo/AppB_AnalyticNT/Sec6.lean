@@ -4,6 +4,8 @@ public import RiemannMasullo.AppB_AnalyticNT.Sec1
 public import Mathlib.Analysis.Calculus.LogDeriv
 public import Mathlib.NumberTheory.ArithmeticFunction.VonMangoldt
 import RiemannMasullo.ForMathlib.NumberTheory.EulerProduct.Basic
+import RiemannMasullo.ForMathlib.NumberTheory.NumberField.Completion.FinitePlace
+import RiemannMasullo.ForMathlib.NumberTheory.NumberField.HeckeLFunction
 
 /-!
 # Classical zero-free regions for Hecke L-functions
@@ -197,7 +199,172 @@ def heckeNormCoefficient (χ : 𝒳[F]) (x : ℝ) : ℂ :=
 agree with the coefficients of Mathlib's formal Euler product. -/
 theorem heckeNormCoefficient_natCast (χ : 𝒳[F]) (m : ℕ) :
     heckeNormCoefficient χ (m : ℝ) = χ.LFunction m := by
-  sorry
+  classical
+  let a (v : HeightOneSpectrum (𝓞 F)) : ℂ :=
+    if χ.IsUnramifiedAt v then χ.localValue v else 0
+  let factor (I : Ideal (𝓞 F)) (v : HeightOneSpectrum (𝓞 F)) :=
+    a v ^ multiplicity v.asIdeal I
+  let value := heckeIdealValue χ
+  have hzero : value 0 = 0 := by simp [value, heckeIdealValue]
+  have hvalue {I : Ideal (𝓞 F)} (hI : I ≠ 0) : value I = ∏ᶠ v, factor I v := by
+    have hI' : I ≠ ⊥ := by simpa only [Ideal.zero_eq_bot] using hI
+    simp only [value, heckeIdealValue, ite_eq_right hI', factor, a]
+  have hsupport (I : Ideal (𝓞 F)) : (factor I).HasFiniteMulSupport :=
+    UniqueFactorizationMonoid.hasFiniteMulSupport_fun_pow_multiplicity a
+      HeightOneSpectrum.asIdeal_injective HeightOneSpectrum.irreducible
+  let c : Ideal (𝓞 F) →*₀ ℂ :=
+    { toFun := value
+      map_zero' := hzero
+      map_one' := by
+        rw [hvalue one_ne_zero]
+        exact finprod_eq_one_of_forall_eq_one fun v ↦ by
+          simp only [factor, multiplicity_one_right, pow_zero]
+      map_mul' := by
+        intro I J
+        by_cases hI : I = 0
+        · simp only [hI, zero_mul, hzero]
+        by_cases hJ : J = 0
+        · simp only [hJ, mul_zero, hzero]
+        rw [hvalue (mul_ne_zero hI hJ), hvalue hI, hvalue hJ,
+          ← finprod_mul_distrib (hsupport I) (hsupport J)]
+        apply finprod_congr
+        intro v
+        simp only [factor, multiplicity_mul v.prime
+          (FiniteMultiplicity.of_prime_left v.prime (mul_ne_zero hI hJ)), pow_add] }
+  have hd (v w : HeightOneSpectrum (𝓞 F)) (h : v.asIdeal ∣ w.asIdeal) : v = w :=
+    HeightOneSpectrum.ext (w.isMaximal.eq_of_le v.isPrime.ne_top (Ideal.dvd_iff_le.mp h)).symm
+  have hcPrime (v : HeightOneSpectrum (𝓞 F)) : c v.asIdeal = a v := by
+    change value v.asIdeal = _
+    rw [hvalue v.prime.ne_zero, finprod_eq_single _ v]
+    · simp only [factor,
+        multiplicity_self (FiniteMultiplicity.of_prime_left v.prime v.prime.ne_zero), pow_one]
+    · intro w hw
+      simp only [factor, multiplicity_eq_zero_of_not_dvd (fun h ↦ hw (hd w v h)), pow_zero]
+  have hN (v : HeightOneSpectrum (𝓞 F)) : 1 < v.asIdeal.absNorm :=
+    NumberField.HeightOneSpectrum.one_lt_absNorm v
+  have hE (v : HeightOneSpectrum (𝓞 F)) : χ.localEulerFactor v =
+      ArithmeticFunction.ofPowerSeries v.asIdeal.absNorm (PowerSeries.mk fun k ↦ a v ^ k) := by
+    rw [HeckeCharacter.localEulerFactor, card_residueField_adicCompletion,
+      hecke_localPowerSeries_eq_mk]
+  have hEpow (v : HeightOneSpectrum (𝓞 F)) (k : ℕ) :
+      χ.localEulerFactor v (v.asIdeal.absNorm ^ k) = a v ^ k := by
+    rw [hE, ArithmeticFunction.ofPowerSeries_apply_pow (hN v), PowerSeries.coeff_mk]
+  have hEne (v : HeightOneSpectrum (𝓞 F)) (d : ℕ) (h : χ.localEulerFactor v d ≠ 0) :
+      v.asIdeal.absNorm ^ Nat.log v.asIdeal.absNorm d = d := by
+    by_contra hk
+    apply h
+    rw [hE, ArithmeticFunction.ofPowerSeries_apply (hN v), Function.extend_apply']
+    · rfl
+    rintro ⟨k, rfl⟩
+    exact hk (by rw [Nat.log_pow (hN v)])
+  let U (S : Finset (HeightOneSpectrum (𝓞 F))) (n : ℕ) : Finset (Ideal (𝓞 F)) :=
+    (Ring.HasFiniteQuotients.finite_absNorm_eq n).toFinset.filter fun I ↦ ∀ v, v.asIdeal ∣ I → v ∈ S
+  have hmemU {S : Finset (HeightOneSpectrum (𝓞 F))} {n : ℕ} {I : Ideal (𝓞 F)} :
+      I ∈ U S n ↔ I.absNorm = n ∧ ∀ v, v.asIdeal ∣ I → v ∈ S := by
+    simp [U]
+  have key (S : Finset (HeightOneSpectrum (𝓞 F))) (n : ℕ) :
+      (∏ v ∈ S, χ.localEulerFactor v) n = ∑ I ∈ U S n, c I := by
+    induction S using Finset.induction_on generalizing n with
+    | empty =>
+      have hU (I : Ideal (𝓞 F)) (hI : I ∈ U ∅ n) : I = ⊥ ∨ I = ⊤ := by
+        by_contra! h
+        obtain ⟨J, hJ, hIJ⟩ := I.exists_le_maximal h.2
+        have hv := (hmemU.mp hI).2 ⟨J, hJ.isPrime, fun hJ0 ↦ h.1 (le_bot_iff.mp (hJ0 ▸ hIJ))⟩
+          (Ideal.dvd_iff_le.mpr hIJ)
+        simp at hv
+      rw [Finset.prod_empty]
+      by_cases hn : n = 1
+      · subst hn
+        rw [ArithmeticFunction.one_one,
+          Finset.sum_eq_single_of_mem ⊤ (hmemU.mpr ⟨Ideal.absNorm_top, by
+          intro v hv
+          exact absurd (Ideal.dvd_iff_le.mp hv) (fun h ↦ v.isPrime.ne_top (top_le_iff.mp h))⟩)]
+        · rw [← Ideal.one_eq_top, map_one]
+        · intro I hI hIt
+          rcases hU I hI with rfl | rfl
+          · rw [← Ideal.zero_eq_bot, _root_.map_zero]
+          · exact absurd rfl hIt
+      · rw [ArithmeticFunction.one_apply_ne hn]
+        refine (Finset.sum_eq_zero fun I hI ↦ ?_).symm
+        rcases hU I hI with rfl | rfl
+        · rw [← Ideal.zero_eq_bot, _root_.map_zero]
+        · exact absurd ((hmemU.mp hI).1.symm.trans Ideal.absNorm_top) hn
+    | insert w S hw ih =>
+      have hw0 : w.asIdeal ≠ 0 := w.prime.ne_zero
+      rw [Finset.prod_insert hw, ArithmeticFunction.mul_apply]
+      simp_rw [ih, Finset.mul_sum]
+      rw [Finset.sum_sigma']
+      refine Finset.sum_bij_ne_zero
+        (fun p _ _ ↦ w.asIdeal ^ Nat.log w.asIdeal.absNorm p.1.1 * p.2) ?_ ?_ ?_ ?_
+      · rintro ⟨⟨d, e⟩, J⟩ hp hne
+        rw [Finset.mem_sigma, Nat.mem_divisorsAntidiagonal, hmemU] at hp
+        have hk := hEne w d (left_ne_zero_of_mul hne)
+        refine hmemU.mpr ⟨?_, fun v hv ↦ ?_⟩
+        · rw [map_mul, map_pow, hk, hp.2.1, hp.1.1]
+        · rcases v.prime.dvd_or_dvd hv with h | h
+          · exact Finset.mem_insert.mpr (Or.inl (hd v w (v.prime.dvd_of_dvd_pow h)))
+          · exact Finset.mem_insert_of_mem (hp.2.2 v h)
+      · have hmult (k : ℕ) (J : Ideal (𝓞 F)) (hJ : J ≠ 0) (hwJ : ¬ w.asIdeal ∣ J) :
+            multiplicity w.asIdeal (w.asIdeal ^ k * J) = k := by
+          rw [multiplicity_mul w.prime (FiniteMultiplicity.of_prime_left w.prime
+            (mul_ne_zero (pow_ne_zero _ hw0) hJ)), multiplicity_pow_self_of_prime w.prime,
+            multiplicity_eq_zero_of_not_dvd hwJ, add_zero]
+        rintro ⟨⟨d, e⟩, J⟩ hp hne ⟨⟨d', e'⟩, J'⟩ hp' hne' heq
+        rw [Finset.mem_sigma, Nat.mem_divisorsAntidiagonal, hmemU] at hp hp'
+        have hJ : J ≠ 0 := fun h ↦ hne (by rw [h, _root_.map_zero, mul_zero])
+        have hJ' : J' ≠ 0 := fun h ↦ hne' (by rw [h, _root_.map_zero, mul_zero])
+        have hwJ : ¬ w.asIdeal ∣ J := fun h ↦ hw (hp.2.2 w h)
+        have hwJ' : ¬ w.asIdeal ∣ J' := fun h ↦ hw (hp'.2.2 w h)
+        dsimp only at heq
+        have hkk := (hmult _ J hJ hwJ).symm.trans ((congrArg _ heq).trans (hmult _ J' hJ' hwJ'))
+        have hJJ : J = J' := mul_left_cancel₀ (pow_ne_zero _ hw0) (hkk ▸ heq)
+        have hdd : d = d' := by
+          rw [← hEne w d (left_ne_zero_of_mul hne), ← hEne w d' (left_ne_zero_of_mul hne'), hkk]
+        have hee : e = e' := hp.2.1.symm.trans (hJJ ▸ hp'.2.1)
+        subst hJJ hdd hee
+        rfl
+      · intro I hI hcI
+        rw [hmemU] at hI
+        have hI0 : I ≠ 0 := fun h ↦ hcI (by rw [h, _root_.map_zero])
+        obtain ⟨k, J, hwJ, rfl⟩ := WfDvdMonoid.max_power_factor hI0 w.irreducible
+        refine ⟨⟨(w.asIdeal.absNorm ^ k, J.absNorm), J⟩, ?_, ?_, ?_⟩
+        · rw [Finset.mem_sigma, Nat.mem_divisorsAntidiagonal, hmemU]
+          refine ⟨⟨by rw [← hI.1, map_mul, map_pow], ?_⟩, rfl, fun v hv ↦ ?_⟩
+          · rw [← hI.1, Ne, Ideal.absNorm_eq_zero_iff, ← Ideal.zero_eq_bot]
+            exact hI0
+          · rcases Finset.mem_insert.mp (hI.2 v (dvd_mul_of_dvd_right hv _)) with rfl | h
+            · exact absurd hv hwJ
+            · exact h
+        · rw [map_mul, map_pow, hcPrime] at hcI
+          rwa [hEpow]
+        · dsimp only
+          rw [Nat.log_pow (hN w)]
+      · rintro ⟨⟨d, e⟩, J⟩ hp hne
+        dsimp only
+        rw [map_mul, map_pow, hcPrime, ← hEpow, hEne w d (left_ne_zero_of_mul hne)]
+  rcases eq_or_ne m 0 with rfl | hm
+  · rw [ArithmeticFunction.map_zero, heckeNormCoefficient]
+    have : IsEmpty {I : Ideal (𝓞 F) // I ≠ ⊥ ∧ (I.absNorm : ℝ) = ((0 : ℕ) : ℝ)} :=
+      ⟨fun I ↦ I.2.1 (Ideal.absNorm_eq_zero_iff.mp (by exact_mod_cast I.2.2))⟩
+    exact finsum_of_isEmpty _
+  obtain ⟨S, hS, hSm⟩ := ((heckeLocalEulerFactor_eventually_prod_eq χ m).and
+    (eventually_ge_atTop ((Ring.HasFiniteQuotients.finite_absNorm_le m).preimage
+      HeightOneSpectrum.asIdeal_injective.injOn).toFinset)).exists
+  rw [← hS, key S m]
+  have hset : {I : Ideal (𝓞 F) | I ≠ ⊥ ∧ (I.absNorm : ℝ) = m} = ↑(U S m) := by
+    ext I
+    simp only [Set.mem_ofPred_eq, Finset.mem_coe, hmemU]
+    constructor
+    · rintro ⟨-, hIm⟩
+      have hIm' : I.absNorm = m := by exact_mod_cast hIm
+      refine ⟨hIm', fun v hv ↦ hSm ?_⟩
+      rw [Set.Finite.mem_toFinset, Set.mem_preimage, Set.mem_ofPred_eq, ← hIm']
+      exact Nat.le_of_dvd (Nat.pos_of_ne_zero (hIm' ▸ hm)) (map_dvd Ideal.absNorm hv)
+    · rintro ⟨hIm, -⟩
+      exact ⟨fun h ↦ hm (by rw [← hIm, h, Ideal.absNorm_bot]), by exact_mod_cast hIm⟩
+  change ∑ᶠ I : ↥{I : Ideal (𝓞 F) | I ≠ ⊥ ∧ (I.absNorm : ℝ) = m}, value I = _
+  rw [hset, finsum_set_coe_eq_finsum_mem, finsum_mem_coe_finset]
+  rfl
 
 /-- Paper: Equation (B.6.1.5), p. 637. Grouping the terms by their integral
 norm gives the absolutely convergent Dirichlet series with coefficients `aₘ`. -/
