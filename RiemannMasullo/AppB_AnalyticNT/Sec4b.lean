@@ -552,7 +552,19 @@ additive principal value for the standard character is ordinary multiplicative i
 theorem finiteConnesPrincipalValue_one_of_apply_zero (v : Primes(F))
     (f : 𝒮ₐ(v.adicCompletion F)) (_hf : addTest(f) 0 = 0) :
     finiteConnesPrincipalValue v 1 f =
-      ∫ u : (v.adicCompletion F)ˣ, addTest(f) u.val ∂μ𝔭(v) := by sorry
+      ∫ u : (v.adicCompletion F)ˣ, addTest(f) u.val ∂μ𝔭(v) := by
+  have hT := ((exists_finiteConnesPrincipalValue v 1).choose_spec f).2
+  have hK := (finiteLogFourier_eq_neg_haar v f _hf).2.2
+  have hV : V𝔭(v) ≠ 0 := by
+    rw [finiteLocalMultiplicativeTamagawaMeasure_integerUnits, ENNReal.toReal_ne_zero]
+    refine ⟨ENNReal.inv_ne_zero.mpr ENNReal.ofReal_ne_top, ENNReal.inv_ne_top.mpr ?_⟩
+    refine (ENNReal.ofReal_pos.mpr (Real.sqrt_pos.mpr (pow_pos ?_ _))).ne'
+    exact_mod_cast (NumberField.HeightOneSpectrum.one_lt_absNorm v).trans' zero_lt_one
+  change finiteConnesPrincipalValue v 1 f = _ at hT
+  simp only [Units.val_one, norm_one, Real.sqrt_one, ENNReal.ofReal_one, one_smul,
+    one_mul] at hT
+  rw [hT, hK, mul_div, neg_mul_neg]
+  exact mul_div_cancel_left₀ _ (Complex.ofReal_ne_zero.mpr hV)
 
 /-- Paper: Definition B.4.4.1(1), p. 619. The archimedean Fourier pairing
 defines a continuous linear functional on additive tests. -/
