@@ -95,7 +95,9 @@ theorem spectralQuotient_comp_spectralProjection (_ha : 0 < a) :
 /-- Paper: Lemma 10.4.1.2, p. 456. The geometric projection has zero
 composition with the quotient map. -/
 theorem spectralQuotient_comp_geometricProjection (_ha : 0 < a) :
-    (Qₐ).comp Pgeom = 0 := by sorry
+    (Qₐ).comp Pgeom = 0 :=
+  ContinuousLinearMap.ext fun u ↦
+    (Submodule.Quotient.mk_eq_zero (Θ₀)).2 ((Θ₀).starProjection_apply_mem u)
 
 /-- Paper: Lemma 10.4.1.2, p. 456. The spectral projection of any representative
 is the unique orthogonal representative, canonically isometric to the quotient
