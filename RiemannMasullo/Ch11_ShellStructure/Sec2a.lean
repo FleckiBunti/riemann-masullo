@@ -238,7 +238,8 @@ in its isotype, so the quotient carries the canonical quotient norm.
 Deviation: Sanity check for the closure used in the definition. -/
 @[instance]
 theorem instClosedOrbitalSobolevSubmoduleSec2a (S : Finset V) {s : ℝ} (hs : 0 ≤ s)
-    (ω : PontryaginDual C₁) : IsClosed (N(S, hs, ω) : Set Wω(hs, ω)) := by sorry
+    (ω : PontryaginDual C₁) : IsClosed (N(S, hs, ω) : Set Wω(hs, ω)) :=
+  (Submodule.isClosed_topologicalClosure _).preimage continuous_subtype_val
 
 /-- Paper: Theorem 11.2.0.2, p. 485. With no finite places imposed, the
 principal-value subspace is the whole isotype.
