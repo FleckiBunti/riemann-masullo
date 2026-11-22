@@ -497,7 +497,10 @@ theorem spectralStripMultiplicity_boundary {α b : ℝ} (_hα : 0 ≤ α)
 /-- Paper: (10.2.2.6), p. 446. At an interior point every order below the
 zero multiplicity is retained. -/
 theorem spectralStripMultiplicity_interior {α b : ℝ} (_hb : b ∈ Ioo (-α) α) (s : ℝ) (N : ℕ) :
-    spectralStripMultiplicity α s b N = N := by sorry
+    spectralStripMultiplicity α s b N = N := by
+  unfold spectralStripMultiplicity
+  rw [mem_Ioo] at _hb
+  simp [_hb]
 
 /-- Paper: Theorem 10.2.2.1, p. 446. Index the strip jets by the norm-one
 component, real offset, ordinate, and surviving derivative order. The point
