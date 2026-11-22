@@ -177,7 +177,24 @@ theorem introTracePower_two :
 /-- Paper: §1.4.2, p. 28. The radial power is smooth on the two real
 intervals separated by its jump at one. -/
 theorem introTracePower_contDiffOn (z : ℂ) :
-    ContDiffOn ℝ ⊤ (introTracePower z) ({1}ᶜ : Set ℝ) := by sorry
+    ContDiffOn ℝ ⊤ (introTracePower z) ({1}ᶜ : Set ℝ) := by
+  intro x hx
+  refine ContDiffAt.contDiffWithinAt ?_
+  rcases lt_or_gt_of_ne (show x ≠ 1 from hx) with h | h
+  · have : introTracePower z =ᶠ[nhds x] fun _ ↦ 0 := by
+      filter_upwards [eventually_lt_nhds h] with t ht
+      simp [introTracePower, ht.not_gt, ht.ne]
+    exact contDiffAt_const.congr_of_eventuallyEq this
+  · have : introTracePower z =ᶠ[nhds x]
+        fun t : ℝ ↦ Complex.exp ((Real.log t : ℂ) * (-z)) := by
+      filter_upwards [eventually_gt_nhds h] with t ht
+      have ht0 : (t : ℂ) ≠ 0 := Complex.ofReal_ne_zero.2 (by linarith)
+      simp only [introTracePower, ht, ↓reduceIte, Complex.cpow_def_of_ne_zero ht0,
+        Complex.ofReal_log (by linarith : (0 : ℝ) ≤ t)]
+    refine ContDiffAt.congr_of_eventuallyEq ?_ this
+    have hlog : ContDiffAt ℝ ⊤ Real.log x := Real.contDiffAt_log.2 (by linarith)
+    exact Complex.contDiff_exp.contDiffAt.comp x
+      ((Complex.ofRealCLM.contDiff.contDiffAt.comp x hlog).mul contDiffAt_const)
 
 /-- Paper: §1.4.2, p. 28. The limiting power depends holomorphically
 on the complex parameter at each fixed radial coordinate. -/
