@@ -3,6 +3,8 @@ module
 public import RiemannMasullo.Ch04_PeriodicSchauderBases.Sec2
 public import RiemannMasullo.Ch04_PeriodicSchauderBases.Sec5
 
+import RiemannMasullo.ForMathlib.Analysis.SpecialFunctions.Pow.Complex
+
 /-!
 # Periodic Schauder bases in the presence of multiplicity
 
@@ -396,11 +398,157 @@ theorem modulatedQuotientLogMoment_mkQ (j : J) (f : H₀[ω]) :
 -- hypothesis, but their distinct lattice frequencies can approach each other
 -- faster than any inverse power. See the report for the counterexample.
 
+/-- A circle exponential of a multiple of the logarithm is a purely imaginary complex power. -/
+private theorem coe_circleExp_mul_log (s : ℝ) (t : ℝ≥0ˣ) :
+    (Circle.exp (s * Real.log ((t : ℝ≥0) : ℝ)) : ℂ) =
+      (((t : ℝ≥0) : ℝ) : ℂ) ^ ((s : ℂ) * Complex.I) := by
+  have hpos : 0 < ((t : ℝ≥0) : ℝ) := NNReal.coe_pos.mpr (Units.zero_lt t)
+  rw [Circle.coe_exp, Complex.cpow_def_of_ne_zero (Complex.ofReal_ne_zero.mpr hpos.ne'),
+    ← Complex.ofReal_log hpos.le]
+  congr 1
+  push_cast
+  ring
+
+/-- For each real frequency, `t ↦ exp(i s log t)` is a unitary character of the positive reals. -/
+private theorem exists_positiveRealCharacter (s : ℝ) :
+    ∃ ψ : PontryaginDual ℝ≥0ˣ, ∀ t, ψ t = Circle.exp (s * Real.log ((t : ℝ≥0) : ℝ)) := by
+  have hpos (t : ℝ≥0ˣ) : 0 < ((t : ℝ≥0) : ℝ) := NNReal.coe_pos.mpr (Units.zero_lt t)
+  refine ⟨{ toFun := fun t ↦ Circle.exp (s * Real.log ((t : ℝ≥0) : ℝ))
+            map_one' := by simp
+            map_mul' := fun t u ↦ by
+              simp only [Units.val_mul, NNReal.coe_mul]
+              rw [Real.log_mul (hpos t).ne' (hpos u).ne', mul_add, Circle.exp_add]
+            continuous_toFun := Circle.exp.continuous.comp (continuous_const.mul
+              ((NNReal.continuous_coe.comp Units.continuous_val).log
+                fun t ↦ (hpos t).ne')) }, fun _ ↦ rfl⟩
+
+/-- Every unitary character of the positive reals is `t ↦ exp(i s log t)` for a unique `s`. -/
+private theorem existsUnique_positiveRealCharacter_freq (ψ : PontryaginDual ℝ≥0ˣ) :
+    ∃! s : ℝ, ∀ t, ψ t = Circle.exp (s * Real.log ((t : ℝ≥0) : ℝ)) := by
+  let c : ℝ≥0ˣ →ₜ* ℂ := (⟨Circle.coeHom, continuous_subtype_val⟩ : Circle →ₜ* ℂ).comp ψ
+  obtain ⟨z, ⟨hz0, hz⟩, -⟩ := existsUnique_unitaryComplexPower c (fun t ↦ Circle.norm_coe (ψ t))
+  obtain ⟨w, -, hw⟩ := existsUnique_complexPower c
+  have hz' : (z.im : ℂ) * Complex.I = z := by apply Complex.ext <;> simp [hz0]
+  refine ⟨z.im, fun t ↦ Circle.ext ?_, fun s hs ↦ ?_⟩
+  · rw [coe_circleExp_mul_log, hz']
+    exact hz t
+  · have h1 := hw _ fun t ↦ (congrArg Subtype.val (hs t)).trans (coe_circleExp_mul_log s t)
+    have h2 := hw _ fun t ↦ (hz t).trans (congrArg _ hz'.symm)
+    have := mul_right_cancel₀ Complex.I_ne_zero (h1.trans h2.symm)
+    exact_mod_cast this
+
+/-- Through a section of the modulation, a character of the norm-one subgroup extends to a
+character trivial on the section, and every extension is that one times a character of the
+section. -/
+private theorem exists_baseCharacter_of_section (τ : ℝ≥0ˣ →ₜ* G)
+    (hτ : ∀ t, m (τ t) = t) :
+    ∃ ξ₀ : PontryaginDual G, (∀ u : K, ξ₀ u.val = ω u) ∧ (∀ t, ξ₀ (τ t) = 1) ∧
+      ∀ ξ : PontryaginDual G, (∀ u : K, ξ u.val = ω u) → ∀ g, ξ g = ξ₀ g * ξ (τ (m g)) := by
+  have hmem (g : G) : g * (τ (m g))⁻¹ ∈ K := by
+    rw [MonoidHom.mem_ker, map_mul, map_inv]
+    change m g * (m (τ (m g)))⁻¹ = 1
+    rw [hτ, mul_inv_cancel]
+  let r : G →ₜ* K :=
+    { toFun := fun g ↦ ⟨g * (τ (m g))⁻¹, hmem g⟩
+      map_one' := Subtype.ext (by simp)
+      map_mul' := fun g h ↦ Subtype.ext (by
+        simp only [map_mul, Subgroup.coe_mul, mul_inv]
+        ac_rfl)
+      continuous_toFun := (continuous_id.mul (τ.continuous.comp m.continuous).inv).subtype_mk _ }
+  have hr (g : G) : ((r g : K) : G) = g * (τ (m g))⁻¹ := rfl
+  have hsplit (g : G) : g = (r g : G) * τ (m g) := by rw [hr, inv_mul_cancel_right]
+  refine ⟨ω.comp r, fun u ↦ ?_, fun t ↦ ?_, fun ξ hξ g ↦ ?_⟩
+  · change ω (r u) = ω u
+    congr 1
+    apply Subtype.ext
+    rw [hr, show m u.val = 1 from u.2, map_one, inv_one, mul_one]
+  · change ω (r (τ t)) = 1
+    rw [show r (τ t) = 1 from Subtype.ext (by rw [hr, hτ, mul_inv_cancel]; rfl), map_one]
+  · conv_lhs => rw [hsplit g, map_mul, hξ]
+    rfl
+
+
 include hm hms hγs in
 /-- Paper: Theorem 4.6.1.5, p. 212. The moment index is countably infinite,
 so the arbitrary enumerations used for the bases exist. -/
 theorem modulatedPeriodicMomentIndex_enumerable (hN : 0 < N) :
-    Nonempty (ℕ ≃ J) := by sorry
+    Nonempty (ℕ ≃ J) := by
+  classical
+  obtain ⟨τ₀, hτ₀⟩ := hm.exists_section
+  let τ : ℝ≥0ˣ →ₜ* G := τ₀.comp
+    ⟨(MonoidHom.id ℝ≥0ˣ).codRestrict _ fun t ↦ MonoidHom.mem_range.mpr (hms t),
+      continuous_id.subtype_mk _⟩
+  have hτ (t : ℝ≥0ˣ) : m (τ t) = t := hτ₀ _
+  obtain ⟨ξ₀, hξ₀K, hξ₀τ, hξ₀⟩ := exists_baseCharacter_of_section m ω τ hτ
+  set L : Fin N → ℝ := fun k ↦ Real.log ((m (γs k) : ℝ≥0) : ℝ)
+  have hL (k : Fin N) : L k ≠ 0 :=
+    (Real.log_pos (show (1 : ℝ) < ((m (γs k) : ℝ≥0) : ℝ) by exact_mod_cast hγs k)).ne'
+  choose c hc using fun k ↦ Circle.exp_surjective (ξ₀ (γs k))⁻¹
+  -- Characters in the fibers are determined by a frequency on the section.
+  have hfreq (j : J) :
+      ∃ k : Fin N, ∃ n : ℤ, ∃ s : ℝ, (∀ u : K, j.val.1 u.val = ω u) ∧
+        (∀ t, j.val.1 (τ t) = Circle.exp (s * Real.log ((t : ℝ≥0) : ℝ))) ∧
+        s * L k = c k + n * (2 * Real.pi) := by
+    have hpos := (mem_modulatedPeriodicSpectrum_iff m ω γs j.val.1).mpr
+      (lt_of_le_of_lt (Nat.zero_le _) j.2)
+    obtain ⟨k, hk⟩ := mem_iUnion.mp hpos
+    obtain ⟨hγ, hK⟩ := (mem_modulatedCyclicAnnihilatorFiber_iff m ω (γs k) _).mp hk
+    obtain ⟨s, hs, -⟩ := existsUnique_positiveRealCharacter_freq (j.val.1.comp τ)
+    have h1 : Circle.exp (s * L k) = Circle.exp (c k) := by
+      show Circle.exp (s * Real.log ((m (γs k) : ℝ≥0) : ℝ)) = _
+      rw [hc, ← hs (m (γs k))]
+      change j.val.1 (τ (m (γs k))) = (ξ₀ (γs k))⁻¹
+      rw [eq_inv_iff_mul_eq_one, mul_comm, ← hξ₀ _ hK, hγ]
+    obtain ⟨n, hn⟩ := Circle.exp_eq_exp.mp h1
+    exact ⟨k, n, s, hK, hs, hn⟩
+  choose k n s hK hs hn using hfreq
+  have hcount : Injective fun j ↦ (k j, n j, j.val.2) := by
+    intro i j hij
+    simp only [Prod.mk.injEq] at hij
+    obtain ⟨hk, hnij, h2⟩ := hij
+    have hss : s i = s j := by
+      have := hn i
+      rw [hk, hnij, ← hn j] at this
+      exact mul_right_cancel₀ (hL _) this
+    apply Subtype.ext
+    refine Prod.ext (PontryaginDual.ext fun g ↦ ?_) h2
+    rw [hξ₀ _ (hK i), hξ₀ _ (hK j), hs, hs, hss]
+  have : Countable J := hcount.countable
+  -- Infinitely many characters lie in the first fiber.
+  let k₀ : Fin N := ⟨0, hN⟩
+  let sₙ : ℕ → ℝ := fun n ↦ (c k₀ + n * (2 * Real.pi)) / L k₀
+  choose ψ hψ using fun n ↦ exists_positiveRealCharacter (sₙ n)
+  let ξ : ℕ → PontryaginDual G := fun n ↦ ξ₀ * PontryaginDual.map m (ψ n)
+  have hξ (n : ℕ) : ξ n ∈ modulatedCyclicAnnihilatorFiber m ω (γs k₀) := by
+    rw [mem_modulatedCyclicAnnihilatorFiber_iff]
+    refine ⟨?_, fun u ↦ ?_⟩
+    · change ξ₀ (γs k₀) * ψ n (m (γs k₀)) = 1
+      rw [hψ, show sₙ n * Real.log ((m (γs k₀) : ℝ≥0) : ℝ) = c k₀ + (n : ℤ) * (2 * Real.pi) by
+        simp only [sₙ]; field_simp [hL k₀]; push_cast; ring]
+      rw [show Circle.exp (c k₀ + (n : ℤ) * (2 * Real.pi)) = Circle.exp (c k₀) from
+        Circle.exp_eq_exp.mpr ⟨n, rfl⟩, hc, mul_inv_cancel]
+    · change ξ₀ u.val * ψ n (m u.val) = ω u
+      rw [show m u.val = 1 from u.2, map_one, mul_one, hξ₀K]
+  let f : ℕ → J :=
+    fun n ↦ ⟨(ξ n, 0), (mem_modulatedPeriodicSpectrum_iff m ω γs (ξ n)).mp
+      (mem_iUnion.mpr ⟨k₀, hξ n⟩)⟩
+  have hf : Injective f := by
+    intro a b hab
+    have hξab : ξ a = ξ b := congrArg (fun j ↦ j.val.1) hab
+    have hτξ (n : ℕ) (t : ℝ≥0ˣ) :
+        ξ n (τ t) = Circle.exp (sₙ n * Real.log ((t : ℝ≥0) : ℝ)) := by
+      change ξ₀ (τ t) * ψ n (m (τ t)) = _
+      rw [hξ₀τ, one_mul, hτ, hψ]
+    obtain ⟨_, -, huniq⟩ := existsUnique_positiveRealCharacter_freq ((ξ a).comp τ)
+    have hab' : sₙ a = sₙ b :=
+      (huniq _ (hτξ a)).trans (huniq _ fun t ↦ (congrArg (fun χ ↦ χ (τ t)) hξab).trans
+        (hτξ b t)).symm
+    simp only [sₙ] at hab'
+    rw [div_left_inj₀ (hL k₀)] at hab'
+    have := mul_right_cancel₀ (mul_ne_zero two_ne_zero Real.pi_ne_zero) (add_left_cancel hab')
+    exact_mod_cast this
+  have : Infinite J := Infinite.of_injective f hf
+  exact nonempty_equiv_of_countable
 
 variable (hcomm : ∃ a : ℝ, 0 < a ∧ ∀ k, ∃ r : ℚ, Real.log ((m (γs k)).val : ℝ) = (r : ℝ) * a)
 
