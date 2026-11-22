@@ -184,7 +184,11 @@ def spectralZeroJet (χ : PontryaginDual C𝔽) (b t : ℝ) (k : ℕ) (g : C𝔽
 twist zero is the base character.
 Deviation: Sanity check in degree and twist zero. -/
 theorem spectralZeroJet_zero (χ : PontryaginDual C𝔽) (g : C𝔽) :
-    spectralZeroJet χ 0 0 0 g = (χ g : ℂ) := by sorry
+    spectralZeroJet χ 0 0 0 g = (χ g : ℂ) := by
+  unfold spectralZeroJet
+  simp only [pow_zero, mul_one, Complex.ofReal_zero, zero_mul, add_zero]
+  change (χ g : ℂ) * _ ^ (0 : ℂ) = _
+  rw [Complex.cpow_zero, mul_one]
 
 /-- Paper: (10.2.1.6), p. 440, and (10.2.2.5), p. 446. Truncate the
 multiplicity to the number of integrable jet orders at the boundary.
