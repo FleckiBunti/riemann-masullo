@@ -125,7 +125,18 @@ via Mathlib's quotient equivalence. -/
 theorem spectralQuotient_orthogonalRepresentative (_ha : 0 < a) (u : W₀) :
     let v := (Θ₀).quotientEquivOrthogonal (Qₐ u)
     (v : W₀) = Pspec u ∧
-      ∀ w : (Θ₀).orthogonal, Qₐ w = Qₐ u → w = v := by sorry
+      ∀ w : (Θ₀).orthogonal, Qₐ w = Qₐ u → w = v := by
+  intro v
+  have hu : Qₐ u = Qₐ (Pspec u) := (Submodule.Quotient.eq (Θ₀)).2 (by
+    have h : u - Pspec u = (Θ₀).starProjection u :=
+      sub_eq_of_eq_add ((Θ₀).starProjection_add_starProjection_orthogonal u).symm
+    exact (congrArg (· ∈ Θ₀) h).mpr ((Θ₀).starProjection_apply_mem u))
+  have hv : v = ⟨Pspec u, (Θ₀).orthogonal.starProjection_apply_mem u⟩ :=
+    (congrArg (Θ₀).quotientEquivOrthogonal hu).trans
+      ((Θ₀).quotientEquivOrthogonal_mk _ ((Θ₀).orthogonal.starProjection_apply_mem u))
+  exact ⟨congrArg Subtype.val hv, fun w hw ↦
+    ((Θ₀).quotientEquivOrthogonal_mk (w : W₀) w.2).symm.trans
+      (congrArg (Θ₀).quotientEquivOrthogonal hw)⟩
 
 variable {Λ ε : ℝ} {ρ : IdeleClassGroup (𝓞 F) F → ℝ}
 local notation "innerBand" => (0 < Λ⁻¹ + ε ∧ Λ⁻¹ + ε < Λ - ε)
