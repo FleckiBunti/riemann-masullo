@@ -272,7 +272,8 @@ theorem continuous_diagonalIndentationWeight :
 include hH hν hS hb in
 /-- Paper: Proposition 12.2.2.2(1), p. 508. The averaged indentation weight is nonnegative. -/
 theorem diagonalIndentationWeight_nonneg (p : G × G) :
-    0 ≤ diagonalIndentationWeight H countH b p := by sorry
+    0 ≤ diagonalIndentationWeight H countH b p := by
+  exact integral_nonneg fun h ↦ mul_nonneg (hb.2.1 _) (hb.2.1 _)
 
 include hH hν hS hb in
 /-- Paper: Proposition 12.2.2.2(1), p. 508. Translating both coordinates by the same
