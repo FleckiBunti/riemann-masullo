@@ -491,7 +491,12 @@ def spectralStripMultiplicity (α s b : ℝ) (N : ℕ) : ℕ :=
 is the truncated multiplicity. -/
 theorem spectralStripMultiplicity_boundary {α b : ℝ} (_hα : 0 ≤ α)
     (_hb : b = -α ∨ b = α) (s : ℝ) (N : ℕ) :
-    spectralStripMultiplicity α s b N = spectralBoundaryMultiplicity s N := by sorry
+    spectralStripMultiplicity α s b N = spectralBoundaryMultiplicity s N := by
+  unfold spectralStripMultiplicity
+  split_ifs with h1
+  · exfalso
+    rcases _hb with rfl | rfl <;> linarith [h1.1, h1.2]
+  · rfl
 
 /-- Paper: (10.2.2.6), p. 446. At an interior point every order below the
 zero multiplicity is retained. -/
