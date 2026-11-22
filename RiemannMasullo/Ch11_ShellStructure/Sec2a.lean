@@ -240,11 +240,55 @@ Deviation: Sanity check for the closure used in the definition. -/
 theorem instClosedOrbitalSobolevSubmoduleSec2a (S : Finset V) {s : ℝ} (hs : 0 ≤ s)
     (ω : PontryaginDual C₁) : IsClosed (N(S, hs, ω) : Set Wω(hs, ω)) := by sorry
 
+/-- Conjugating the tensor product of two identity maps by a linear
+equivalence out of a seminorm-generated tensor space gives the identity. -/
+theorem withGeneratingSeminorms_conj_map_id {A B C ι : Type*} [AddCommGroup A]
+    [Module ℂ A] [AddCommGroup B] [Module ℂ B] [AddCommGroup C] [Module ℂ C]
+    [TopologicalSpace C] (p : SeminormFamily ℂ (TensorProduct ℂ A B) ι)
+    (e : WithGeneratingSeminorms (TensorProduct ℂ A B) p ≃L[ℂ] C) (g : A →ₗ[ℂ] A)
+    (h : B →ₗ[ℂ] B) (hg : g = LinearMap.id) (hh : h = LinearMap.id) :
+    e.toLinearMap.comp ((TensorProduct.map g h).comp e.symm.toLinearMap) = LinearMap.id := by
+  subst hg hh
+  rw [TensorProduct.map_id]
+  ext x
+  exact e.apply_symm_apply x
+
+/-- Pulling back the closure of a dense submodule to any submodule gives the
+whole submodule. -/
+theorem comap_topologicalClosure_eq_top_of_dense {E : Type*} [AddCommGroup E] [Module ℂ E]
+    [TopologicalSpace E] [ContinuousAdd E] [ContinuousConstSMul ℂ E] (K R : Submodule ℂ E)
+    (hR : Dense (R : Set E)) : R.topologicalClosure.comap K.subtype = ⊤ := by
+  rw [(Submodule.dense_iff_topologicalClosure_eq_top).1 hR, Submodule.comap_top]
+
 /-- Paper: Theorem 11.2.0.2, p. 485. With no finite places imposed, the
 principal-value subspace is the whole isotype.
 Deviation: Sanity check for the empty set of places. -/
 theorem orbitalSobolevSubmodule_empty {s : ℝ} (hs : 0 ≤ s) (ω : PontryaginDual C₁) :
-    N(∅, hs, ω) = ⊤ := by sorry
+    N(∅, hs, ω) = ⊤ := by
+  have key : ∀ g : (w : (∅ : Finset V)) →
+      SchwartzBruhat (Multiplicative (w.val.adicCompletion F)) →ₗ[ℂ]
+        SchwartzBruhat (Multiplicative (w.val.adicCompletion F)),
+      PiTensorProduct.map (R := ℂ) g = LinearMap.id := fun g ↦ by
+    rw [show g = fun _ ↦ LinearMap.id from funext fun w ↦ absurd w.2 (Finset.notMem_empty _)]
+    exact PiTensorProduct.map_id
+  have hP : sAdelePrincipalValue F (Finset.Subset.refl (∅ : Finset V)) = LinearMap.id := by
+    unfold sAdelePrincipalValue
+    exact withGeneratingSeminorms_conj_map_id _ _ _ _ rfl (key _)
+  have hA : adelePrincipalValue F ∅ = LinearMap.id := by
+    unfold adelePrincipalValue
+    exact withGeneratingSeminorms_conj_map_id _ _ _ _ hP rfl
+  have hpv : ∀ f : ℬ₀, pvTest(∅, f) = f := fun f ↦ Subtype.ext (by
+    simp only [hA, LinearMap.id_apply])
+  have hPid : P(∅, 0, hs) = ContinuousLinearMap.id ℂ _ :=
+    (existsUnique_globalThetaSobolevPrincipalValue ∅ 0 hs).unique
+      (existsUnique_globalThetaSobolevPrincipalValue ∅ 0 hs).exists.choose_spec
+      (fun f ↦ congrArg (fun g : ℬ₀ ↦ j(0, hs) (theta(g))) (hpv f).symm)
+  unfold orbitalSobolevSubmodule
+  refine comap_topologicalClosure_eq_top_of_dense _ _ ?_
+  refine (denseRange_globalTheta_zeroLine hs).mono ?_
+  rintro _ ⟨u, rfl⟩
+  exact ⟨j(0, hs) u, congrArg
+    (fun T : H(0, hs) →L[ℂ] H(0, hs) ↦ ((T (j(0, hs) u) : H(0, hs)) : W(s))) hPid⟩
 
 -- TODO(paper-gap): The proof on p. 486 needs density of both spans for the
 -- completed PV quotient. Strong approximation on the ambient space in §9.3
