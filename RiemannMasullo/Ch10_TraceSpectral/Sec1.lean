@@ -270,7 +270,8 @@ def sIdeleIntervalSobolevMeasure (α β s : ℝ) : Measure Iₛ :=
 s = 0, so the measure is the original multiplicative Tamagawa measure.
 Deviation: Sanity check for the measure. -/
 theorem sIdeleIntervalSobolevMeasure_zero :
-    sIdeleIntervalSobolevMeasure F S 0 0 0 = sMultiplicativeTamagawaMeasure F S := by sorry
+    sIdeleIntervalSobolevMeasure F S 0 0 0 = sMultiplicativeTamagawaMeasure F S := by
+  simp [sIdeleIntervalSobolevMeasure, intervalSobolevDensity]
 
 /-- Paper: Lemma 10.1.1.4(1), pp. 435–436. The weighted S-idele measure is
 regular and finite on compact sets. -/
