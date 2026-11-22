@@ -418,7 +418,8 @@ coordinate, the tail kernel equals the lifted kernel. -/
 theorem diagonalIndentationTail_of_notMem (μH : Measure H) (b : G → ℝ) (v : Q × Q → ℂ)
     {K : Subgroup G} {x y : G} (hy : y ∉ K) :
     diagonalIndentationTail H μH b v K (x, y) =
-      diagonalIndentationLift H μH b v (x, y) := by sorry
+      diagonalIndentationLift H μH b v (x, y) := by
+  simp [diagonalIndentationTail, hy]
 
 -- TODO(paper-gap): The closing citation on p. 513 refers to the tail definition
 -- (12.2.2.26); the convergence claim is (12.2.2.27).
