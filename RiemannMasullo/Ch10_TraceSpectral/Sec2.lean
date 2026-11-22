@@ -439,7 +439,8 @@ theorem spectralFamily_regular_normalized_iff {E : Type*} [NormedAddCommGroup E]
 and normalized singleton family.
 Deviation: Sanity check for the two predicates. -/
 theorem spectralFamily_singleton_normalized {E : Type*} [NormedAddCommGroup E] (x : E)
-    (_hx : x ≠ 0) : IsNormalizedSpectralFamily (fun _ : Unit ↦ x) := by sorry
+    (_hx : x ≠ 0) : IsNormalizedSpectralFamily (fun _ : Unit ↦ x) := by
+  exact ⟨⟨‖x‖, fun _ ↦ le_rfl⟩, ‖x‖, norm_pos_iff.mpr _hx, fun _ ↦ le_rfl⟩
 
 /-- Paper: Corollary 10.2.1.4, p. 444. The a-line basis in the quotient dual
 is normalized in the norm of its realization in the negative space.
