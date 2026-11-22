@@ -169,7 +169,10 @@ def introTracePower (z : ℂ) (t : ℝ) : ℂ :=
 /-- Paper: §1.4.2, p. 28. On the positive side at parameter two the profile
 has value one quarter at two and value one half at the jump. -/
 theorem introTracePower_two :
-    introTracePower 2 2 = 1 / 4 ∧ introTracePower 2 1 = 1 / 2 := by sorry
+    introTracePower 2 2 = 1 / 4 ∧ introTracePower 2 1 = 1 / 2 := by
+  refine ⟨?_, by simp [introTracePower]⟩
+  simp only [introTracePower, show (1 : ℝ) < 2 by norm_num, ↓reduceIte, Complex.cpow_neg]
+  norm_num
 
 /-- Paper: §1.4.2, p. 28. The radial power is smooth on the two real
 intervals separated by its jump at one. -/
