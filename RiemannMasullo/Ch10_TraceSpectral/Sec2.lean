@@ -230,7 +230,17 @@ abbrev SpectralLineJetIndex (χ : PontryaginDual C₁ → PontryaginDual C𝔽) 
 /-- Paper: Theorem 10.2.1.1, p. 440. Every admitted a-line jet has positive
 derivative capacity, so its indexing point is a zero of the completed L-function. -/
 theorem SpectralLineJetIndex.order_pos {χ : PontryaginDual C₁ → PontryaginDual C𝔽} {a s : ℝ}
-    (j : SpectralLineJetIndex χ a s) : 0 < vanishingOrder(χ j.val.1, shift(a, j.val.2.1)) := by sorry
+    (j : SpectralLineJetIndex χ a s) : 0 < vanishingOrder(χ j.val.1, shift(a, j.val.2.1)) := by
+  have key : ∀ o : WithTop ℤ, 0 < o.untop₀.toNat → 0 < o := by
+    intro o h
+    cases o with
+    | top => simp at h
+    | coe n =>
+      rw [WithTop.untop₀_coe] at h
+      exact_mod_cast (by omega : 0 < n)
+  have h := j.2
+  unfold spectralBoundaryMultiplicity at h
+  exact key _ (by omega)
 
 local notation "lineJet(" χ ", " j ")" => spectralZeroJet (χ (j).val.1) 0 (j).val.2.1 (j).val.2.2
 local notation "stripJet(" χ ", " j ")" =>
