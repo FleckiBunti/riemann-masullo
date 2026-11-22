@@ -501,7 +501,22 @@ point in the closed strip and that point is a zero of the completed L-function. 
 theorem SpectralStripJetIndex.mem_strip_order_pos {χ : PontryaginDual C₁ → PontryaginDual C𝔽}
     {a α s : ℝ} (_hα : 0 ≤ α) (j : SpectralStripJetIndex χ a α s) :
     j.val.2.1 ∈ Icc (-α) α ∧
-      0 < vanishingOrder(χ j.val.1, shift(a + j.val.2.1, j.val.2.2.1)) := by sorry
+      0 < vanishingOrder(χ j.val.1, shift(a + j.val.2.1, j.val.2.2.1)) := by
+  have key : ∀ o : WithTop ℤ, 0 < o.untop₀.toNat → 0 < o := by
+    intro o h
+    cases o with
+    | top => simp at h
+    | coe n =>
+      rw [WithTop.untop₀_coe] at h
+      exact_mod_cast (by omega : 0 < n)
+  have h := j.2
+  unfold spectralStripMultiplicity spectralBoundaryMultiplicity at h
+  split_ifs at h with h1 h2
+  · exact ⟨⟨h1.1.le, h1.2.le⟩, key _ (by omega)⟩
+  · refine ⟨?_, key _ (by omega)⟩
+    rw [mem_Icc]
+    rcases h2 with h2 | h2 <;> constructor <;> linarith
+  · omega
 
 /-- Paper: Theorem 10.2.2.1, p. 446. The admitted strip jets are
 square-integrable for the reciprocal strip weight.
