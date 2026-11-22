@@ -79,7 +79,8 @@ local notation "Pspec" => spectralProjection (F := F) a hα hs
 /-- Paper: Definition 10.4.1.1(1), p. 456. The geometric projector fixes each
 vector in the theta subspace. -/
 theorem geometricProjection_apply_of_mem {u : W₀} (_hu : u ∈ Θ₀) :
-    Pgeom u = u := by sorry
+    Pgeom u = u :=
+  (Θ₀).starProjection_eq_self_iff.2 _hu
 
 /-- Paper: Definition 10.4.1.1(2), p. 456. The spectral projector fixes each
 vector orthogonal to the theta subspace. -/
