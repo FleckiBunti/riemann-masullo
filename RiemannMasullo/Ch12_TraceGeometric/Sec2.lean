@@ -195,7 +195,11 @@ def IsIndentationFundamentalDomain (A : Type*) [Group A] [MulAction A X]
 a fundamental domain exactly when it is nonempty under the relaxed definition. -/
 theorem isIndentationFundamentalDomain_univ_punit (μ : Measure X) :
     IsIndentationFundamentalDomain PUnit μ (univ : Set X) ↔
-      (univ : Set X).Nonempty := by sorry
+      (univ : Set X).Nonempty := by
+  unfold IsIndentationFundamentalDomain
+  rw [interior_univ]
+  exact ⟨fun h ↦ h.1, fun h ↦ ⟨h, fun _ ↦ ⟨PUnit.unit, mem_univ _, fun _ _ ↦ rfl⟩,
+    fun a ha ↦ absurd (Subsingleton.elim a 1) ha⟩⟩
 
 /-- Paper: Remark 12.2.1.4, p. 507. With countably many translates and a Borel
 measure, the paper's exact tiling gives a measure-theoretic fundamental domain. -/
