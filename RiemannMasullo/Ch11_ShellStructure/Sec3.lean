@@ -3,6 +3,7 @@ module
 public import Mathlib.NumberTheory.PrimeCounting
 public import RiemannMasullo.Ch11_ShellStructure.Sec2b
 
+import all RiemannMasullo.AppA_AlgebraicNT.Sec2
 import all RiemannMasullo.Ch10_TraceSpectral.Sec1
 import all RiemannMasullo.Ch11_ShellStructure.Sec1a
 
@@ -160,7 +161,22 @@ a split prime. -/
 theorem relativeIdeleNormRat_mem_divisorialStratum
     (T : Finset Vℚ) :
     divisorialStratum F (T.biUnion (fun p ↦ above(p))) ⊆
-      (relativeIdeleNormRat F) ⁻¹' divisorialStratum ℚ T := by sorry
+      (relativeIdeleNormRat F) ⁻¹' divisorialStratum ℚ T := by
+  have hQ (v : Vℚ) (x : v.adicCompletion ℚ) : ‖x‖ = 1 ↔ Valued.v x = 1 := by
+    rw [FinitePlace.norm_def, NNReal.coe_eq_one,
+      WithZeroMulInt.toNNReal_eq_one_iff _ _ (HeightOneSpectrum.one_lt_absNorm_nnreal v).ne']
+  have hF (v : V) (x : v.adicCompletion F) : ‖x‖ = 1 ↔ Valued.v x = 1 := by
+    rw [FinitePlace.norm_def, NNReal.coe_eq_one,
+      WithZeroMulInt.toNNReal_eq_one_iff _ _ (HeightOneSpectrum.one_lt_absNorm_nnreal v).ne']
+  intro g hg p hp
+  refine (hQ p _).1 ?_
+  refine (rationalAdeleNorm_finitePlace F p g.val).trans ?_
+  refine finprod_eq_one_of_forall_eq_one fun w ↦ ?_
+  rw [finprod_eq_if]
+  split_ifs with hw
+  · exact (hF w _).2 (hg w (Finset.mem_biUnion.2
+      ⟨p, hp, (finite_nuclearityPlacesAbove p).mem_toFinset.2 hw⟩))
+  · rfl
 
 /-- Paper: §11.3.1.1, p. 493. The product of the unit indicators on a finite set
 outside S converts the integer-extended test to its principal value at those places.
