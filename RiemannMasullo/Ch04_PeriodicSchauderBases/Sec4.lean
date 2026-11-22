@@ -680,7 +680,16 @@ theorem modulatedCyclicExponential_split (τ : ℝ≥0ˣ →ₜ* G) (hτ : Right
     e j (QuotientGroup.mk (τ t * k.val)) =
       star (j.1 k : ℂ) *
         (Circle.exp ((t₀ j.1 - 2 * Real.pi * (j.2 : ℝ) / L - b j.1) *
-          Real.log (t.val : ℝ)) : ℂ) := by sorry
+          Real.log (t.val : ℝ)) : ℂ) := by
+  have hlog : (logModule (τ t * k.val)) = Real.log (t.val : ℝ) := by
+    rw [map_mul, hτ t, show m k.val = 1 from k.2, mul_one]
+  change ((modulatedCyclicCharacter m γ hγ χ t₀ ht₀ j (QuotientGroup.mk (τ t * k.val)) :
+    Circle) : ℂ) = _
+  rw [modulatedCyclicCharacter_mk, hlog, map_mul, hb, hk, sub_mul _ (b j.1), Circle.exp_sub,
+    Complex.star_def, ← Circle.coe_inv_eq_conj, ← Circle.coe_mul]
+  congr 1
+  simp only [mul_inv, div_eq_mul_inv]
+  ac_rfl
 
 variable [MeasurableSpace G] [BorelSpace G]
 variable (μ₁ : Measure m.toMonoidHom.ker) [hHaar₁ : μ₁.IsHaarMeasure]
@@ -714,7 +723,13 @@ local notation "a" => modulatedCyclicFourierCoeff m γ hm hγ χ t₀ ht₀ μ�
 Schwartz–Bruhat function against the conjugate exponential with the stated normalization. -/
 theorem modulatedCyclicFourierCoeff_apply (j : J) (f : S) :
     Integrable (fun z ↦ f z * star (e j z)) ν ∧
-    a j f = (L * μ₁.real univ)⁻¹ * ∫ z, f z * star (e j z) ∂ν := by sorry
+    a j f = (L * μ₁.real univ)⁻¹ * ∫ z, f z * star (e j z) ∂ν := by
+  have := modulatedCyclicQuotient_compact m γ hm hγ
+  refine ⟨?_, rfl⟩
+  have hξ : Continuous (fun z : Q ↦ ((ξ j z : Circle) : ℂ)) :=
+    continuous_subtype_val.comp (ξ j).continuous
+  exact ((schwartzBruhat_continuous f).mul hξ.star).integrable_of_hasCompactSupport
+    (HasCompactSupport.of_compactSpace _)
 
 variable [SecondCountableTopology G]
 variable (τ : ℝ≥0ˣ →ₜ* G) (hτ : RightInverse τ m)
