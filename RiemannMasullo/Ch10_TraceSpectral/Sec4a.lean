@@ -90,7 +90,11 @@ theorem spectralProjection_apply_of_mem {u : W₀} (_hu : u ∈ (Θ₀).orthogon
 /-- Paper: Lemma 10.4.1.2, p. 456. The spectral projection preserves the
 quotient class of every vector. -/
 theorem spectralQuotient_comp_spectralProjection (_ha : 0 < a) :
-    (Qₐ).comp Pspec = Qₐ := by sorry
+    (Qₐ).comp Pspec = Qₐ :=
+  ContinuousLinearMap.ext fun u ↦ ((Submodule.Quotient.eq (Θ₀)).2 (by
+    have h : u - Pspec u = (Θ₀).starProjection u :=
+      sub_eq_of_eq_add ((Θ₀).starProjection_add_starProjection_orthogonal u).symm
+    exact (congrArg (· ∈ Θ₀) h).mpr ((Θ₀).starProjection_apply_mem u))).symm
 
 /-- Paper: Lemma 10.4.1.2, p. 456. The geometric projection has zero
 composition with the quotient map. -/
