@@ -79,7 +79,8 @@ abbrev spectralSobolevQuotient (a : ℝ) {l r s : ℝ} (hI : l ≤ r) (hs : 0 �
 /-- Paper: (10.2.1.1), p. 439, and (10.2.2.1), p. 445. A Sobolev vector has
 zero spectral class exactly when it is in the closed weighted theta subspace. -/
 theorem spectralSobolevQuotient_eq_zero (a : ℝ) {l r s : ℝ} (hI : l ≤ r) (hs : 0 ≤ s)
-    (f : W(l, r, s)) : Θ(a, hI, hs).mkQ f = 0 ↔ f ∈ Θ(a, hI, hs) := by sorry
+    (f : W(l, r, s)) : Θ(a, hI, hs).mkQ f = 0 ↔ f ∈ Θ(a, hI, hs) :=
+  Submodule.Quotient.mk_eq_zero _
 
 variable (F) in
 /-- Paper: (10.2.1.2), p. 439, and (10.2.2.2), p. 445. Divide the ambient
