@@ -10,6 +10,7 @@ public import RiemannMasullo.ForMathlib.NumberTheory.NumberField.Completion.Fini
 public import Mathlib.Analysis.Meromorphic.Divisor
 public import Mathlib.NumberTheory.Harmonic.EulerMascheroni
 import Mathlib.Analysis.SpecialFunctions.FrullaniIntegral
+import all RiemannMasullo.AppD_SchwartzBruhat.Sec3a
 
 /-!
 # Explicit formulas for Hecke L-functions
@@ -572,7 +573,87 @@ Deviation: The factor one half is the real case of the correction to Proposition
 theorem realConnesPrincipalValue_of_apply_zero (w : InfinitePlace F) (_hw : w.IsReal)
     (f : 𝒮ₐ(w.Completion)) (_hf : addTest(f) 0 = 0) :
     infiniteConnesPrincipalValue w f =
-      (1 / 2 : ℂ) * ∫ x, addTest(f) x / ((‖x‖ : ℝ) : ℂ) ∂ν∞(w) := by sorry
+      (1 / 2 : ℂ) * ∫ x, addTest(f) x / ((‖x‖ : ℝ) : ℂ) ∂ν∞(w) := by
+  have hT := ((exists_infiniteConnesPrincipalValue w).choose_spec f).2
+  change infiniteConnesPrincipalValue w f = _ at hT
+  have hL := (realLogFourier_finitePart w _hw f).2.2
+  simp only [_hf, mul_zero, zero_mul, add_zero] at hL
+  let : BorelSpace w.Completion := ⟨rfl⟩
+  -- Real coordinates turn the test into a classical Schwartz function vanishing at zero.
+  let e := InfinitePlace.Completion.isometryEquivRealOfIsReal _hw
+  let c : Multiplicative w.Completion ≃ₜ* Multiplicative ℝ :=
+    { toMulEquiv := (InfinitePlace.Completion.ringEquivRealOfIsReal _hw).toAddEquiv.toMultiplicative
+      continuous_toFun := e.continuous
+      continuous_invFun := e.symm.continuous }
+  have hc := schwartzBruhat_realCoordinate_equiv c
+  have hE := hc.choose_spec
+  let s := hc.choose.symm f
+  have hs (t : ℝ) : s t = addTest(f) (e.symm t) := by
+    have := hE s (Multiplicative.ofAdd (e.symm t))
+    rw [ContinuousLinearEquiv.apply_symm_apply] at this
+    refine Eq.trans ?_ this.symm
+    exact congrArg s (e.apply_symm_apply t).symm
+  have h0 : e.symm 0 = 0 := map_zero (InfinitePlace.Completion.ringEquivRealOfIsReal _hw).symm
+  have hnorm (t : ℝ) : ‖e.symm t‖ = ‖t‖ := by
+    rw [← dist_zero_right, ← dist_zero_right t, ← e.symm.dist_eq t 0, h0]
+  have hs0 : s 0 = 0 := by rw [hs, h0]; exact _hf
+  -- The weighted test is integrable on the real line: Lipschitz near zero, decaying at infinity.
+  let C := SchwartzMap.seminorm ℝ 0 1 s
+  have hlip (t : ℝ) : ‖s t‖ ≤ C * ‖t‖ := by
+    have := Convex.norm_image_sub_le_of_norm_fderiv_le (𝕜 := ℝ) (f := s) (s := univ) (C := C)
+      (fun x _ ↦ s.differentiableAt) (fun x _ ↦ ?_) convex_univ (mem_univ 0) (mem_univ t)
+    · simpa [hs0] using this
+    · rw [← norm_iteratedFDeriv_one]
+      exact s.norm_iteratedFDeriv_le_seminorm ℝ 1 x
+  have hR : Integrable (fun t : ℝ ↦ s t / ((‖t‖ : ℝ) : ℂ)) := by
+    refine Integrable.mono' (g := fun t ↦ (Icc (-1 : ℝ) 1).indicator (fun _ ↦ C) t + ‖s t‖)
+      ((continuous_const.integrableOn_Icc.integrable_indicator measurableSet_Icc).add
+        s.integrable.norm)
+      (s.continuous.measurable.div
+        (Complex.measurable_ofReal.comp measurable_norm)).aestronglyMeasurable
+      (Eventually.of_forall fun t ↦ ?_)
+    rw [norm_div, Complex.norm_real, norm_norm]
+    by_cases ht : t ∈ Icc (-1 : ℝ) 1
+    · rw [indicator_of_mem ht]
+      rcases eq_or_ne t 0 with rfl | ht0
+      · simp [hs0, C]
+      · have : ‖s t‖ / ‖t‖ ≤ C := (div_le_iff₀ (norm_pos_iff.mpr ht0)).mpr (hlip t)
+        linarith [norm_nonneg (s t)]
+    · rw [indicator_of_notMem ht, zero_add]
+      have h1 : 1 ≤ ‖t‖ := by
+        simp only [mem_Icc, not_and_or, not_le] at ht
+        rw [Real.norm_eq_abs]
+        rcases ht with h | h
+        · rw [abs_of_neg (by linarith)]; linarith
+        · rw [abs_of_pos (by linarith)]; linarith
+      exact div_le_self (norm_nonneg _) h1
+  have hG : Integrable (fun x : w.Completion ↦ addTest(f) x / ((‖x‖ : ℝ) : ℂ)) ν∞(w) := by
+    rw [infiniteLocalAdditiveTamagawaMeasure, dite_eq_left _hw]
+    let m := e.symm.toHomeomorph.toMeasurableEquiv
+    rw [show ((InfinitePlace.Completion.ringEquivRealOfIsReal _hw).symm : ℝ → w.Completion) = m
+      from rfl, integrable_map_equiv]
+    refine hR.congr (Eventually.of_forall fun t ↦ ?_)
+    change s t / ((‖t‖ : ℝ) : ℂ) = addTest(f) (e.symm t) / ((‖e.symm t‖ : ℝ) : ℂ)
+    rw [hs, hnorm]
+  -- Dominated convergence removes the cutoff.
+  have hmeas (ε : ℝ) : MeasurableSet {x : w.Completion | ε ≤ ‖x‖} :=
+    measurableSet_le measurable_const measurable_norm
+  have hlim : Tendsto (fun ε : ℝ ↦ ∫ x in {x : w.Completion | ε ≤ ‖x‖},
+      addTest(f) x / ((‖x‖ : ℝ) : ℂ) ∂ν∞(w)) (𝓝[>] 0)
+      (𝓝 (∫ x, addTest(f) x / ((‖x‖ : ℝ) : ℂ) ∂ν∞(w))) := by
+    simp_rw [← integral_indicator (hmeas _)]
+    refine tendsto_integral_filter_of_dominated_convergence
+      (fun x ↦ ‖addTest(f) x / ((‖x‖ : ℝ) : ℂ)‖)
+      (Eventually.of_forall fun ε ↦ hG.aestronglyMeasurable.indicator (hmeas ε))
+      (Eventually.of_forall fun ε ↦ Eventually.of_forall fun x ↦ norm_indicator_le_norm_self _ _)
+      hG.norm (Eventually.of_forall fun x ↦ ?_)
+    rcases eq_or_ne x 0 with rfl | hx
+    · simp [Set.indicator_apply]
+    · refine tendsto_const_nhds.congr' ?_
+      filter_upwards [nhdsWithin_le_nhds (eventually_lt_nhds (norm_pos_iff.mpr hx))] with ε hε
+      rw [indicator_of_mem (show ε ≤ ‖x‖ from hε.le)]
+  rw [hT, tendsto_nhds_unique hlim hL]
+  ring
 
 /-- Paper: Definition B.4.4.1(2), p. 620. Translation of the zero-extended
 test after inverse square-root weighting gives a continuous linear map to additive tests. -/
