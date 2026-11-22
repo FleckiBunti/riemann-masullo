@@ -101,7 +101,8 @@ local notation "P(" S ", " a ", " hs ")" => globalThetaSobolevPrincipalValue F S
 on each polar-free theta class. -/
 theorem globalThetaSobolevPrincipalValue_apply (S : Finset V) (a : ℝ) {s : ℝ}
     (hs : 0 ≤ s) (f : ℬ₀) :
-    P(S, a, hs) (j(a, hs) (theta(f))) = j(a, hs) (theta(pvTest(S, f))) := by sorry
+    P(S, a, hs) (j(a, hs) (theta(f))) = j(a, hs) (theta(pvTest(S, f))) :=
+  (existsUnique_globalThetaSobolevPrincipalValue S a hs).exists.choose_spec f
 
 /-- Paper: Lead-in to (11.2.0.3), p. 484. The extended principal value is injective.
 Deviation: The inverse on its range can be discontinuous. -/
