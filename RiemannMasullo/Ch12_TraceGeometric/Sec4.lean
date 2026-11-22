@@ -111,7 +111,18 @@ theorem realSpatialCutoff_flat_of_eventually_zero (ρ : ℝ → ℝ)
     (_hSmooth : ContDiff ℝ (∞ : ℕ∞ω) ρ) (_hCompact : HasCompactSupport ρ)
     (_hZero : ∀ᶠ x in 𝓝 (0 : ℝ), ρ x = 0) (f : 𝓢(ℝ, ℂ)) :
     ∃ h : 𝓢(ℝ, ℂ), h ∈ realSchwartzFlatAtOrigin ∧
-      ∀ x : ℝ, h x = (ρ x : ℂ) * f x := by sorry
+      ∀ x : ℝ, h x = (ρ x : ℂ) * f x := by
+  have hg : (fun x : ℝ ↦ (ρ x : ℂ)).HasTemperateGrowth :=
+    (_hCompact.comp_left Complex.ofReal_zero).hasTemperateGrowth
+      (Complex.ofRealCLM.contDiff.comp _hSmooth)
+  refine ⟨SchwartzMap.smulLeftCLM ℂ (fun x : ℝ ↦ (ρ x : ℂ)) f,
+    (mem_realSchwartzFlatAtOrigin_iff _).2 fun k ↦ ?_, fun x ↦ ?_⟩
+  · have h0 : (SchwartzMap.smulLeftCLM ℂ (fun x : ℝ ↦ (ρ x : ℂ)) f : ℝ → ℂ) =ᶠ[𝓝 0]
+        fun _ ↦ 0 :=
+      _hZero.mono fun x hx ↦ by simp [SchwartzMap.smulLeftCLM_apply_apply hg, hx]
+    rw [h0.iteratedDeriv_eq]
+    simp
+  · simp [SchwartzMap.smulLeftCLM_apply_apply hg]
 
 /-- Paper: Step II and (12.4.1.8)–(12.4.1.10), pp. 516–517. The Fourier cutoff
 multiplies the Fourier transform by a symbol, then applies the inverse transform.
