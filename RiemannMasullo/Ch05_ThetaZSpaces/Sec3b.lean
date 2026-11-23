@@ -2,6 +2,7 @@ module
 
 public import RiemannMasullo.Ch05_ThetaZSpaces.Sec3a
 public import RiemannMasullo.AppD_SchwartzBruhat.Sec3b
+import Mathlib.Algebra.Order.Archimedean.Real.Hom
 import all RiemannMasullo.AppD_SchwartzBruhat.Sec1b
 import all RiemannMasullo.AppD_SchwartzBruhat.Sec2b
 import all RiemannMasullo.AppD_SchwartzBruhat.Sec3a
@@ -1701,10 +1702,104 @@ theorem sAdelePolarFree_translate (r : RealModels) (c : ComplexModels)
     (g : Aₛˣ) (f : ℬₛ) (_hf : f ∈ sAdelePolarFree S r c) :
     schwartzBruhatUnitTranslate g f ∈ sAdelePolarFree S r c := by sorry
 
+/-- Composing a flat Schwartz function with a real-linear automorphism of the
+archimedean coordinates that keeps the coordinate walls keeps it flat. -/
+private theorem archimedeanFlatSchwartz_comp_wall (D : ArchCoordinates ≃L[ℝ] ArchCoordinates)
+    (hD : ∀ x : ArchCoordinates, ((∃ i, x.1 i = 0) ∨ (∃ j, x.2 j = 0)) →
+      ((∃ i, (D x).1 i = 0) ∨ (∃ j, (D x).2 j = 0)))
+    (h : 𝓢(ArchCoordinates, ℂ))
+    (hh : h ∈ archimedeanFlatSchwartz (ι := RealPlaces) (κ := ComplexPlaces)) :
+    SchwartzMap.compCLMOfContinuousLinearEquiv ℂ D h ∈
+      archimedeanFlatSchwartz (ι := RealPlaces) (κ := ComplexPlaces) := by
+  simp only [archimedeanFlatSchwartz, Submodule.mem_iInf, LinearMap.mem_ker,
+    IsLinearMap.mk'_apply] at hh ⊢
+  rintro ⟨x, hx⟩ n v
+  have hcomp := D.toContinuousLinearMap.iteratedFDeriv_comp_right (h.smooth ⊤) x
+    (i := n) (mod_cast le_top)
+  change iteratedFDeriv ℝ n ((h : ArchCoordinates → ℂ) ∘ D) x v = 0
+  erw [hcomp]
+  exact hh ⟨D x, hD x hx⟩ n (fun i ↦ D (v i))
+
+/-- Changing the archimedean field identifications changes each slice by a
+real-linear automorphism of the coordinates that keeps the walls. -/
+private theorem sAdelePolarFree_le_of_models (r r' : RealModels) (c c' : ComplexModels) :
+    sAdelePolarFree S r c ≤ sAdelePolarFree S r' c' := by
+  classical
+  intro f hf
+  obtain ⟨hz, hflat⟩ := Submodule.mem_inf.1 hf
+  refine Submodule.mem_inf.2 ⟨hz, ?_⟩
+  -- At a real place both identifications agree, since `ℝ` has one ring endomorphism.
+  have hR (w : RealPlaces) (t : ℝ) : (r' w).val.symm t = (r w).val.symm t := by
+    have hρ : (r w).val.toRingHom.comp (r' w).val.symm.toRingHom = RingHom.id ℝ :=
+      Subsingleton.elim _ _
+    have h1 := RingHom.congr_fun hρ t
+    simp only [RingHom.comp_apply, RingEquiv.toRingHom_eq_coe, RingEquiv.coe_toRingHom,
+      RingHom.id_apply] at h1
+    calc (r' w).val.symm t = (r w).val.symm ((r w).val ((r' w).val.symm t)) :=
+          ((r w).val.symm_apply_apply _).symm
+      _ = (r w).val.symm t := by rw [h1]
+  -- At a complex place they differ by a continuous automorphism of `ℂ`.
+  have hcont (w : ComplexPlaces) : Continuous (c' w).val.symm := by
+    convert (IsHomeomorph.homeomorph _ (c' w).property).symm.continuous using 1
+    funext z
+    apply (c' w).property.injective
+    rw [RingEquiv.apply_symm_apply]
+    exact ((IsHomeomorph.homeomorph _ (c' w).property).apply_symm_apply z).symm
+  let ψ (w : ComplexPlaces) : ℂ →+* ℂ :=
+    (c w).val.toRingHom.comp (c' w).val.symm.toRingHom
+  let ψ' (w : ComplexPlaces) : ℂ →+* ℂ :=
+    (c' w).val.toRingHom.comp (c w).val.symm.toRingHom
+  have hψ (w : ComplexPlaces) (z : ℂ) : ψ w z = (c w).val ((c' w).val.symm z) := rfl
+  have hψ' (w : ComplexPlaces) (z : ℂ) : ψ' w z = (c' w).val ((c w).val.symm z) := rfl
+  have hreal (w : ComplexPlaces) (t : ℝ) : ψ w t = t := by
+    rcases Complex.ringHom_eq_id_or_conj_of_continuous (f := ψ w)
+      ((c w).property.continuous.comp (hcont w)) with h | h
+    · rw [h, RingHom.id_apply]
+    · rw [h]
+      exact Complex.conj_ofReal t
+  let L : ArchCoordinates ≃ₗ[ℝ] ArchCoordinates :=
+    { toFun := fun x ↦ (x.1, fun w ↦ ψ w (x.2 w))
+      invFun := fun x ↦ (x.1, fun w ↦ ψ' w (x.2 w))
+      map_add' := fun x y ↦ Prod.ext rfl (funext fun w ↦ map_add _ _ _)
+      map_smul' := fun t x ↦ Prod.ext rfl (funext fun w ↦ by
+        change ψ w (t • x.2 w) = t • ψ w (x.2 w)
+        rw [Complex.real_smul, Complex.real_smul, map_mul, hreal])
+      left_inv := fun x ↦ Prod.ext rfl (funext fun w ↦ by
+        change ψ' w (ψ w (x.2 w)) = x.2 w
+        rw [hψ, hψ', RingEquiv.symm_apply_apply, RingEquiv.apply_symm_apply])
+      right_inv := fun x ↦ Prod.ext rfl (funext fun w ↦ by
+        change ψ w (ψ' w (x.2 w)) = x.2 w
+        rw [hψ, hψ', RingEquiv.symm_apply_apply, RingEquiv.apply_symm_apply]) }
+  let D : ArchCoordinates ≃L[ℝ] ArchCoordinates := L.toContinuousLinearEquiv
+  have hD (x : ArchCoordinates) : D x = (x.1, fun w ↦ ψ w (x.2 w)) := rfl
+  have hwall (x : ArchCoordinates) : ((∃ i, x.1 i = 0) ∨ (∃ j, x.2 j = 0)) →
+      ((∃ i, (D x).1 i = 0) ∨ (∃ j, (D x).2 j = 0)) := by
+    rintro (⟨i, hi⟩ | ⟨j, hj⟩)
+    · exact Or.inl ⟨i, by simp [hD, hi]⟩
+    · exact Or.inr ⟨j, by simp [hD, hj]⟩
+  have hasm (x : ArchCoordinates) : assemble(r, c, D x) = assemble(r', c', x) := by
+    funext w
+    by_cases hw : w.IsReal
+    · simp only [hw, ↓reduceDIte, hD, hR]
+    · simp only [hw, ↓reduceDIte, hD, hψ, RingEquiv.symm_apply_apply]
+  simp only [Submodule.mem_iInf] at hflat ⊢
+  intro y
+  have hy := hflat y
+  simp only [Submodule.mem_comap, Submodule.mem_map] at hy ⊢
+  obtain ⟨h, hh, hfun⟩ := hy
+  refine ⟨SchwartzMap.compCLMOfContinuousLinearEquiv ℂ D h,
+    archimedeanFlatSchwartz_comp_wall D hwall h hh, ?_⟩
+  funext x
+  refine (congrFun hfun (D x)).trans ?_
+  change f (Multiplicative.ofAdd (assemble(r, c, D x), y)) =
+    f (Multiplicative.ofAdd (assemble(r', c', x), y))
+  rw [hasm]
+
 /-- Paper: Lemma 5.3.4.2(1), p. 260.
 The polar-free subspace is independent of the archimedean field identifications. -/
 theorem sAdelePolarFree_eq_of_models (r r' : RealModels) (c c' : ComplexModels) :
-    sAdelePolarFree S r c = sAdelePolarFree S r' c' := by sorry
+    sAdelePolarFree S r c = sAdelePolarFree S r' c' :=
+  le_antisymm (sAdelePolarFree_le_of_models r r' c c') (sAdelePolarFree_le_of_models r' r c' c)
 
 -- TODO(paper-gap): The proof of (2) starts from entireness and concludes local vanishing.
 -- Restricted local characters are coupled by the S-units, and a pole can cancel against
