@@ -692,7 +692,46 @@ local notation "normℂ(" g ")" => (((m𝔽 g : ℝ≥0) : ℝ) : ℂ)
 The theta kernel is contained in the common polar kernel from §2.2.4, so both
 continuous polar functionals vanish on it. -/
 theorem globalThetaKernel_le_adelePolarSubspace :
-    K𝔽 ≤ LinearMap.ker (adelePolarValues (F := F)) := by sorry
+    K𝔽 ≤ LinearMap.ker (adelePolarValues (F := F)) := by
+  intro f hf
+  have hθ (g : C𝔽) : adelicTheta f g = 0 := DFunLike.congr_fun (LinearMap.mem_ker.1 hf) g
+  obtain ⟨C, T, -, hT, hsmall⟩ := adelicTheta_decay_small f 1
+  set a := adeleSchwartzFourier f zeroAdele
+  set b := f zeroAdele
+  -- Every positive real is the norm of an idele class.
+  have key (t : ℝ) (ht : 0 < t) (htT : t < T) : ‖b - t⁻¹ • a‖ ≤ C * t := by
+    let u : ℝ≥0ˣ := Units.mk0 ⟨t, ht.le⟩ fun h0 ↦ ht.ne' (congrArg Subtype.val h0)
+    let g : C𝔽 := QuotientGroup.mk (canonicalIdeleNormSection F u)
+    have hg : ((m𝔽 g : ℝ≥0) : ℝ) = t := by
+      change ((ideleNorm F (canonicalIdeleNormSection F u) : ℝ≥0) : ℝ) = t
+      rw [canonicalIdeleNormSection_rightInverse F u]
+      rfl
+    have h := hsmall g (by beta_reduce; rw [hg]; exact htT)
+    beta_reduce at h
+    rw [hθ, hg, pow_one] at h
+    rwa [zero_sub, neg_add_eq_sub] at h
+  have hid : Filter.Tendsto (fun t : ℝ ↦ t) (𝓝[>] 0) (𝓝 0) :=
+    (continuous_id.tendsto 0).mono_left nhdsWithin_le_nhds
+  have hlim : Filter.Tendsto (fun t : ℝ ↦ b - t⁻¹ • a) (𝓝[>] 0) (𝓝 0) := by
+    refine squeeze_zero_norm' ?_ (by simpa using hid.const_mul C)
+    filter_upwards [Ioo_mem_nhdsGT hT] with t ht
+    exact key t ht.1 ht.2
+  have h2 : Filter.Tendsto (fun t : ℝ ↦ t • (b - t⁻¹ • a)) (𝓝[>] 0) (𝓝 0) := by
+    simpa using hid.smul hlim
+  have h3 : Filter.Tendsto (fun t : ℝ ↦ t • (b - t⁻¹ • a)) (𝓝[>] 0) (𝓝 (-a)) := by
+    have he : (fun t : ℝ ↦ t • b - a) =ᶠ[𝓝[>] 0] fun t : ℝ ↦ t • (b - t⁻¹ • a) := by
+      filter_upwards [self_mem_nhdsWithin] with t ht
+      rw [smul_sub, smul_smul, mul_inv_cancel₀ (ne_of_gt ht), one_smul]
+    refine Filter.Tendsto.congr' he ?_
+    have hc : Filter.Tendsto (fun t : ℝ ↦ t • b - a) (𝓝 0) (𝓝 ((0 : ℝ) • b - a)) :=
+      ((continuous_id.smul continuous_const).sub continuous_const).tendsto 0
+    simpa using hc.mono_left nhdsWithin_le_nhds
+  have ha : a = 0 := neg_eq_zero.mp (tendsto_nhds_unique h2 h3).symm
+  have hb : b = 0 := by
+    simp only [ha, smul_zero, sub_zero] at hlim
+    exact tendsto_nhds_unique tendsto_const_nhds hlim
+  rw [LinearMap.mem_ker, adelePolarValues_apply]
+  exact Prod.ext hb ha
 
 /-- Paper: Lemma 5.5.2.1, p. 280.
 Evaluation at zero and Fourier evaluation at zero descend as a pair of
