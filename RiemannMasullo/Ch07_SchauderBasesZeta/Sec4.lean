@@ -505,7 +505,65 @@ theorem archNuclearityMultiplicity_rat_one
     (τ : ℝ≥0ˣ →ₜ* IdeleGroup (𝓞 ℚ) ℚ) (hτ : RightInverse τ (ideleNorm ℚ)) :
     archNuclearityMultiplicity (1 : PontryaginDual (IdeleClassGroup (𝓞 ℚ) ℚ)) τ hτ 0 = 0 ∧
       archNuclearityMultiplicity (1 : PontryaginDual (IdeleClassGroup (𝓞 ℚ) ℚ)) τ hτ (-2) = 1 :=
-  by sorry
+  by
+  have hphase := existsUnique_ideleNormSection_character_phase
+    (1 : PontryaginDual (IdeleClassGroup (𝓞 ℚ) ℚ)) τ hτ
+  have hx : hphase.exists.choose = 0 :=
+    hphase.unique hphase.exists.choose_spec fun t ↦ by simp
+  have hω : (1 : PontryaginDual (IdeleClassGroup (𝓞 ℚ) ℚ)).comp
+      (⟨(ideleClassNorm ℚ).ker.subtype, continuous_subtype_val⟩ :
+        (ideleClassNorm ℚ).ker →ₜ* IdeleClassGroup (𝓞 ℚ) ℚ) = 1 :=
+    ContinuousMonoidHom.ext fun _ ↦ rfl
+  have hπ : (Real.pi : ℂ) ≠ 0 := Complex.ofReal_ne_zero.2 Real.pi_ne_zero
+  have hπz (z : ℂ) : (Real.pi : ℂ) ^ (z / 2) ≠ 0 := Complex.cpow_ne_zero_iff.2 (Or.inl hπ)
+  have hG (z : ℂ) : (heckeGammaFactor (1 : PontryaginDual (IdeleClassGroup (𝓞 ℚ) ℚ)) z)⁻¹ =
+      (Real.pi : ℂ) ^ (z / 2) * (z / 2 * ((z / 2 + 1) * (Complex.Gamma (z / 2 + 1 + 1))⁻¹)) := by
+    rw [heckeGammaFactor_one,
+      InfinitePlace.nrRealPlaces_eq_one_of_finrank_eq_one (Module.finrank_self ℚ),
+      InfinitePlace.nrComplexPlaces_eq_zero_of_finrank_eq_one (Module.finrank_self ℚ),
+      pow_one, pow_zero, mul_one, Complex.Gammaℝ, mul_inv, neg_div, Complex.cpow_neg, inv_inv,
+      Complex.one_div_Gamma_eq_self_mul_one_div_Gamma_add_one,
+      Complex.one_div_Gamma_eq_self_mul_one_div_Gamma_add_one (z / 2 + 1)]
+  have hpow : Differentiable ℂ fun z : ℂ ↦ (Real.pi : ℂ) ^ (z / 2) :=
+    (differentiable_id.div_const 2).const_cpow (Or.inl hπ)
+  have hΓ : Differentiable ℂ fun z : ℂ ↦ (Complex.Gamma (z / 2 + 1 + 1))⁻¹ :=
+    Complex.differentiable_one_div_Gamma.comp (by fun_prop)
+  have hf : Differentiable ℂ fun z ↦
+      (heckeGammaFactor (1 : PontryaginDual (IdeleClassGroup (𝓞 ℚ) ℚ)) z)⁻¹ := by
+    simp only [hG]
+    exact hpow.mul ((differentiable_id.div_const 2).mul
+      (((differentiable_id.div_const 2).add_const 1).mul hΓ))
+  have hΓne (z : ℂ) (hz : 0 < z.re) : (Complex.Gamma z)⁻¹ ≠ 0 :=
+    inv_ne_zero (Complex.Gamma_ne_zero_of_re_pos hz)
+  have h0 : (analyticOrderAt (fun z ↦
+      (heckeGammaFactor (1 : PontryaginDual (IdeleClassGroup (𝓞 ℚ) ℚ)) z)⁻¹) 0).toNat = 1 := by
+    rw [((hf.analyticAt 0).analyticOrderAt_eq_natCast (n := 1)).2 ⟨fun z ↦
+      (Real.pi : ℂ) ^ (z / 2) * (1 / 2 * ((z / 2 + 1) * (Complex.Gamma (z / 2 + 1 + 1))⁻¹)),
+      (hpow.mul ((differentiable_const _).mul
+        (((differentiable_id.div_const 2).add_const 1).mul hΓ))).analyticAt 0, ?_,
+      Filter.Eventually.of_forall fun z ↦ ?_⟩]
+    · rfl
+    · refine mul_ne_zero (hπz 0) (mul_ne_zero (by norm_num) (mul_ne_zero (by norm_num)
+        (hΓne _ (by norm_num))))
+    · rw [hG, smul_eq_mul]
+      ring
+  have h2 : (analyticOrderAt (fun z ↦
+      (heckeGammaFactor (1 : PontryaginDual (IdeleClassGroup (𝓞 ℚ) ℚ)) z)⁻¹) (-2)).toNat = 1 := by
+    rw [((hf.analyticAt (-2)).analyticOrderAt_eq_natCast (n := 1)).2 ⟨fun z ↦
+      (Real.pi : ℂ) ^ (z / 2) * (z / 2 * (1 / 2 * (Complex.Gamma (z / 2 + 1 + 1))⁻¹)),
+      (hpow.mul ((differentiable_id.div_const 2).mul
+        ((differentiable_const _).mul hΓ))).analyticAt (-2), ?_,
+      Filter.Eventually.of_forall fun z ↦ ?_⟩]
+    · rfl
+    · refine mul_ne_zero (hπz _) (mul_ne_zero (by norm_num) (mul_ne_zero (by norm_num)
+        (hΓne _ (by norm_num))))
+    · rw [hG, smul_eq_mul]
+      ring
+  refine ⟨?_, ?_⟩ <;> unfold archNuclearityMultiplicity
+  · rw [h0, hx]
+    simp [hω]
+  · rw [h2, hx]
+    simp
 
 /-- Paper: Theorem 7.4.3.1(2), p. 368.
 Each pole contributes derivative indices from zero up to its adjusted order. -/
