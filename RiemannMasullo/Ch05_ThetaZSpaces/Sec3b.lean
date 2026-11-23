@@ -1239,7 +1239,65 @@ def archimedeanFlatSchwartz : Submodule ℂ 𝓢(archAdd(ι, κ), ℂ) :=
 For one real factor the jet conditions recover the real flat subspace of §5.3.2. -/
 theorem archimedeanFlatSchwartz_one_real :
     ∃ e : ↥(archimedeanFlatSchwartz (ι := Unit) (κ := Empty)) ≃L[ℂ] ↥realSchwartzFlatAtOrigin,
-      ∀ f (x : ℝ), (e f).val x = f.val (fun _ ↦ x, fun j ↦ Empty.elim j) := by sorry
+      ∀ f (x : ℝ), (e f).val x = f.val (fun _ ↦ x, fun j ↦ Empty.elim j) := by
+  let L : ℝ ≃ₗ[ℝ] ((Unit → ℝ) × (Empty → ℂ)) :=
+    { toFun := fun x ↦ (fun _ ↦ x, fun j ↦ Empty.elim j)
+      invFun := fun p ↦ p.1 ()
+      map_add' := fun x y ↦ Prod.ext rfl (funext fun j ↦ Empty.elim j)
+      map_smul' := fun t x ↦ Prod.ext rfl (funext fun j ↦ Empty.elim j)
+      left_inv := fun x ↦ rfl
+      right_inv := fun p ↦ Prod.ext (funext fun _ ↦ rfl) (funext fun j ↦ Empty.elim j) }
+  let φ : ℝ ≃L[ℝ] ((Unit → ℝ) × (Empty → ℂ)) := L.toContinuousLinearEquiv
+  let A : 𝓢((Unit → ℝ) × (Empty → ℂ), ℂ) →L[ℂ] 𝓢(ℝ, ℂ) :=
+    SchwartzMap.compCLMOfContinuousLinearEquiv ℂ φ
+  let B : 𝓢(ℝ, ℂ) →L[ℂ] 𝓢((Unit → ℝ) × (Empty → ℂ), ℂ) :=
+    SchwartzMap.compCLMOfContinuousLinearEquiv ℂ φ.symm
+  -- Pulling back along the coordinate line gives a real function flat at zero.
+  have hA (f : 𝓢((Unit → ℝ) × (Empty → ℂ), ℂ))
+      (hf : f ∈ archimedeanFlatSchwartz (ι := Unit) (κ := Empty)) :
+      A f ∈ realSchwartzFlatAtOrigin := by
+    rw [mem_realSchwartzFlatAtOrigin_iff]
+    intro k
+    simp only [archimedeanFlatSchwartz, Submodule.mem_iInf, LinearMap.mem_ker,
+      IsLinearMap.mk'_apply] at hf
+    have h0 := hf ⟨φ 0, Or.inl ⟨(), rfl⟩⟩ k (fun _ ↦ φ 1)
+    rw [iteratedDeriv_eq_iteratedFDeriv]
+    change iteratedFDeriv ℝ k ((f : (Unit → ℝ) × (Empty → ℂ) → ℂ) ∘ φ) 0 (fun _ ↦ 1) = 0
+    erw [φ.toContinuousLinearMap.iteratedFDeriv_comp_right (f.smooth ⊤) 0 (i := k)
+      (mod_cast le_top)]
+    exact h0
+  -- Conversely every jet on the wall is a multiple of a derivative at zero.
+  have hB (g : 𝓢(ℝ, ℂ)) (hg : g ∈ realSchwartzFlatAtOrigin) :
+      B g ∈ archimedeanFlatSchwartz (ι := Unit) (κ := Empty) := by
+    rw [mem_realSchwartzFlatAtOrigin_iff] at hg
+    simp only [archimedeanFlatSchwartz, Submodule.mem_iInf, LinearMap.mem_ker,
+      IsLinearMap.mk'_apply]
+    rintro ⟨x, hx⟩ n v
+    have hx0 : φ.symm x = 0 := by
+      rcases hx with ⟨i, hi⟩ | ⟨j, _⟩
+      · cases i
+        exact hi
+      · exact j.elim
+    change iteratedFDeriv ℝ n ((g : ℝ → ℂ) ∘ φ.symm) x v = 0
+    erw [φ.symm.toContinuousLinearMap.iteratedFDeriv_comp_right (g.smooth ⊤) x (i := n)
+      (mod_cast le_top)]
+    rw [ContinuousMultilinearMap.compContinuousLinearMap_apply]
+    change iteratedFDeriv ℝ n (g : ℝ → ℂ) (φ.symm x) (fun i ↦ φ.symm (v i)) = 0
+    rw [hx0, iteratedFDeriv_apply_eq_iteratedDeriv_mul_prod, hg, smul_zero]
+  let e : ↥(archimedeanFlatSchwartz (ι := Unit) (κ := Empty)) ≃L[ℂ]
+      ↥realSchwartzFlatAtOrigin :=
+    ContinuousLinearEquiv.equivOfInverse
+      ((A.comp (archimedeanFlatSchwartz (ι := Unit) (κ := Empty)).subtypeL).codRestrict
+        realSchwartzFlatAtOrigin fun f ↦ hA f f.2)
+      ((B.comp realSchwartzFlatAtOrigin.subtypeL).codRestrict
+        (archimedeanFlatSchwartz (ι := Unit) (κ := Empty)) fun g ↦ hB g g.2)
+      (fun f ↦ Subtype.ext (SchwartzMap.ext fun y ↦ by
+        change (f.val : (Unit → ℝ) × (Empty → ℂ) → ℂ) (φ (φ.symm y)) = f.val y
+        rw [ContinuousLinearEquiv.apply_symm_apply]))
+      (fun g ↦ Subtype.ext (SchwartzMap.ext fun y ↦ by
+        change (g.val : ℝ → ℂ) (φ.symm (φ y)) = g.val y
+        rw [ContinuousLinearEquiv.symm_apply_apply]))
+  exact ⟨e, fun f x ↦ rfl⟩
 
 /-- Paper: Lemma 5.3.3.3(3), p. 252.
 For one complex factor the real jet conditions recover the mixed Wirtinger conditions of §5.3.2. -/
