@@ -8,6 +8,8 @@ import all RiemannMasullo.AppD_SchwartzBruhat.Sec2b
 import all RiemannMasullo.AppD_SchwartzBruhat.Sec3b
 
 import all RiemannMasullo.AppA_AlgebraicNT.Sec3
+import all RiemannMasullo.Ch03_IdelicZeta.Sec3b
+import all RiemannMasullo.Ch05_ThetaZSpaces.Sec3b
 
 /-! # §7.4 Nuclearity
 
@@ -722,7 +724,110 @@ theorem archNuclearityGammaOrder_eq_sLocal (S : Finset V)
     (h : ideleClassNormTwist χ 0 ∈ unramifiedOutside F S)
     (_hη : sIdeleRestriction F S ⟨ideleClassNormTwist χ 0, h⟩ =
       (⟨Circle.coeHom, continuous_subtype_val⟩ : Circle →ₜ* ℂ).comp η) (s : ℂ) :
-    gammaOrder(χ, s) = sLocalArchimedeanPoleMultiplicity η s := by sorry
+    gammaOrder(χ, s) = sLocalArchimedeanPoleMultiplicity η s := by
+  classical
+  let c : ℂ → QuasiCharacter (SIdeleQuotient F S) := fun z ↦
+    quasiCharacterNormTwist (G := SIdeleQuotient F S) (sIdeleQuotientNorm F S)
+      (isProperMap_sIdeleQuotientNorm F S).continuous
+      ((⟨Circle.coeHom, continuous_subtype_val⟩ : Circle →ₜ* ℂ).comp η) z
+  let E : InfinitePlace F → ℂ → ℂ := fun w z ↦
+    infiniteLocalEulerFactor w (sLocalInfiniteRestriction w (c z))
+  -- The chart through `η` evaluates the global twist on inserted S-ideles.
+  have htwist (z : ℂ) (g : (SAdeleRing F S)ˣ) :
+      c z (QuotientGroup.mk g) =
+        ideleClassNormTwist χ z (QuotientGroup.mk (sIdeleInsertion F S g)) := by
+    have hbase := DFunLike.congr_fun _hη (QuotientGroup.mk g)
+    rw [sIdeleRestriction_mk] at hbase
+    change (χ (QuotientGroup.mk (sIdeleInsertion F S g)) : ℂ) * _ ^ (0 : ℂ) =
+      (η (QuotientGroup.mk g) : ℂ) at hbase
+    simp only [Complex.cpow_zero, mul_one] at hbase
+    change (η (QuotientGroup.mk g) : ℂ) *
+        (((sIdeleQuotientNorm F S (QuotientGroup.mk g) : ℝ≥0) : ℝ) : ℂ) ^ z =
+      (χ (QuotientGroup.mk (sIdeleInsertion F S g)) : ℂ) * _ ^ z
+    rw [← hbase, sIdeleQuotientNorm_mk, ← ideleNorm_sIdeleInsertion]
+    rfl
+  have hinf (w : InfinitePlace F) (z : ℂ) : sLocalInfiniteRestriction w (c z) =
+      infinitePlaceRestriction F w (ideleClassNormTwist χ z) := by
+    ext1 x
+    refine (htwist z _).trans ?_
+    rw [sIdeleInsertion_infiniteUnit]
+    rfl
+  have hprod : (fun z ↦ heckeGammaFactor χ z) = ∏ w, E w := by
+    funext z
+    rw [Finset.prod_apply, ← prod_infiniteLocalEulerFactor_eq_heckeGammaFactor]
+    simp only [E, hinf]
+  -- Each local factor is a translate of a gamma factor, with entire reciprocal.
+  have hEinv (w : InfinitePlace F) : Differentiable ℂ fun z ↦ (E w z)⁻¹ := by
+    by_cases hw : w.IsReal
+    · obtain ⟨b, hb⟩ := infiniteLocalEulerFactor_chart_real η w hw
+      simp only [E, c, hb]
+      exact Complex.differentiable_Gammaℝ_inv.comp (differentiable_id.add_const b)
+    · obtain ⟨b, hb⟩ := infiniteLocalEulerFactor_chart_complex η w
+        (InfinitePlace.not_isReal_iff_isComplex.mp hw)
+      simp only [E, c, hb]
+      convert (Complex.differentiable_Gammaℂ_inv.comp (differentiable_id.add_const b)).const_mul
+        (2 : ℂ) using 1
+      funext z
+      rw [inv_div, div_eq_mul_inv]
+      rfl
+  have hEval (w : InfinitePlace F) : ∃ z₁, (E w z₁)⁻¹ ≠ 0 := by
+    by_cases hw : w.IsReal
+    · obtain ⟨b, hb⟩ := infiniteLocalEulerFactor_chart_real η w hw
+      refine ⟨1 - b, ?_⟩
+      simp only [E, c, hb, sub_add_cancel]
+      exact inv_ne_zero (Complex.Gammaℝ_ne_zero_of_re_pos (by norm_num))
+    · obtain ⟨b, hb⟩ := infiniteLocalEulerFactor_chart_complex η w
+        (InfinitePlace.not_isReal_iff_isComplex.mp hw)
+      refine ⟨1 - b, ?_⟩
+      simp only [E, c, hb, sub_add_cancel]
+      simp [Complex.Gammaℂ_def, Real.pi_ne_zero]
+  have hmer (w : InfinitePlace F) : MeromorphicAt (E w) s := by
+    convert ((hEinv w).analyticAt s).meromorphicAt.inv using 1
+    funext z
+    simp
+  have hntop (w : InfinitePlace F) : meromorphicOrderAt (E w) s ≠ ⊤ := by
+    intro htop
+    have h1 : meromorphicOrderAt (fun z ↦ (E w z)⁻¹) s = ⊤ := by
+      rw [show meromorphicOrderAt (fun z ↦ (E w z)⁻¹) s = -meromorphicOrderAt (E w) s from
+        meromorphicOrderAt_inv, htop]
+      rfl
+    rw [((hEinv w).analyticAt s).meromorphicOrderAt_eq] at h1
+    have h2 : analyticOrderAt (fun z ↦ (E w z)⁻¹) s = ⊤ := by
+      cases hn : analyticOrderAt (fun z ↦ (E w z)⁻¹) s with
+      | top => rfl
+      | coe n => rw [hn] at h1; simp at h1
+    have hA : AnalyticOnNhd ℂ (fun z ↦ (E w z)⁻¹) univ := fun z _ ↦ (hEinv w).analyticAt z
+    obtain ⟨z₁, hz₁⟩ := hEval w
+    exact hz₁ (hA.eqOn_zero_of_preconnected_of_eventuallyEq_zero isPreconnected_univ
+      (mem_univ s) (analyticOrderAt_eq_top.1 h2) (mem_univ z₁))
+  have hle (w : InfinitePlace F) : meromorphicOrderAt (E w) s ≤ 0 := by
+    have h0 := ((hEinv w).analyticAt s).meromorphicOrderAt_nonneg
+    rw [show meromorphicOrderAt (fun z ↦ (E w z)⁻¹) s = -meromorphicOrderAt (E w) s from
+      meromorphicOrderAt_inv] at h0
+    cases hn : meromorphicOrderAt (E w) s with
+    | top => exact absurd hn (hntop w)
+    | coe n =>
+      rw [hn] at h0
+      have h0' : (0 : ℤ) ≤ -n := by exact_mod_cast h0
+      exact_mod_cast (by omega : n ≤ 0)
+  have key := sLocalArchimedeanPoleMultiplicity_eq_sum η s
+  have hG : meromorphicOrderAt (fun z ↦ (heckeGammaFactor χ z)⁻¹) s =
+      ((sLocalArchimedeanPoleMultiplicity η s : ℤ) : WithTop ℤ) := by
+    rw [show meromorphicOrderAt (fun z ↦ (heckeGammaFactor χ z)⁻¹) s =
+        -meromorphicOrderAt (fun z ↦ heckeGammaFactor χ z) s from meromorphicOrderAt_inv,
+      hprod, meromorphicOrderAt_prod fun w _ ↦ hmer w,
+      Finset.sum_congr rfl fun w _ ↦ (min_eq_right (hle w)).symm]
+    change -(∑ w, min 0 (meromorphicOrderAt (fun z ↦ infiniteLocalEulerFactor w
+      (sLocalInfiniteRestriction w (c z))) s)) = _
+    rw [← key]
+    exact_mod_cast neg_neg (sLocalArchimedeanPoleMultiplicity η s : ℤ)
+  rw [((differentiable_inv_heckeGammaFactor χ).analyticAt s).meromorphicOrderAt_eq] at hG
+  cases hn : analyticOrderAt (fun z ↦ (heckeGammaFactor χ z)⁻¹) s with
+  | top => rw [hn] at hG; simp at hG
+  | coe n =>
+    rw [hn] at hG
+    have hn' : (n : ℤ) = (sLocalArchimedeanPoleMultiplicity η s : ℤ) := by simpa using hG
+    simpa using hn'
 
 /-- Paper: Theorem 7.4.3.1(2), p. 368.
 The raw total pole order is reduced by one at the trivial quasi-character,
