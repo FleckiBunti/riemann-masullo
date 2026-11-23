@@ -1699,7 +1699,70 @@ theorem sAdelePolarFree_isClosed (r : RealModels) (c : ComplexModels) :
 Inverse left translation by an S-idele preserves the polar-free subspace. -/
 theorem sAdelePolarFree_translate (r : RealModels) (c : ComplexModels)
     (g : Aₛˣ) (f : ℬₛ) (_hf : f ∈ sAdelePolarFree S r c) :
-    schwartzBruhatUnitTranslate g f ∈ sAdelePolarFree S r c := by sorry
+    schwartzBruhatUnitTranslate g f ∈ sAdelePolarFree S r c := by
+  classical
+  obtain ⟨hz, hflat⟩ := Submodule.mem_inf.1 _hf
+  let u : Aₛ := (g⁻¹ : Aₛˣ).val
+  have hu (w : InfinitePlace F) : u.1 w ≠ 0 := by
+    have h1 : u.1 w * (g : Aₛ).1 w = 1 := by
+      change (u * (g : Aₛ)).1 w = 1
+      simp only [u, Units.inv_mul]
+      rfl
+    exact left_ne_zero_of_mul_eq_one h1
+  refine Submodule.mem_inf.2 ⟨?_, ?_⟩
+  · -- Multiplying by a unit keeps a zero finite coordinate.
+    simp only [sAdeleFiniteZeroSchwartz, Submodule.mem_iInf, LinearMap.mem_ker] at hz ⊢
+    rintro ⟨x, v, hv, hx⟩
+    exact hz ⟨u * x, v, hv, by simp [hx]⟩
+  · -- The archimedean part of the unit dilates the coordinates of every slice.
+    let a : RealPlaces → ℝ := fun w ↦ (r w).val (u.1 w.val)
+    let b : ComplexPlaces → ℂ := fun w ↦ (c w).val (u.1 w.val)
+    have ha (w : RealPlaces) : a w ≠ 0 := (map_ne_zero_iff _ (r w).val.injective).2 (hu w.val)
+    have hb (w : ComplexPlaces) : b w ≠ 0 := (map_ne_zero_iff _ (c w).val.injective).2 (hu w.val)
+    let L : ArchCoordinates ≃ₗ[ℝ] ArchCoordinates :=
+      { toFun := fun x ↦ (fun w ↦ a w * x.1 w, fun w ↦ b w * x.2 w)
+        invFun := fun x ↦ (fun w ↦ (a w)⁻¹ * x.1 w, fun w ↦ (b w)⁻¹ * x.2 w)
+        map_add' := fun x y ↦ Prod.ext (funext fun w ↦ mul_add _ _ _)
+          (funext fun w ↦ mul_add _ _ _)
+        map_smul' := fun t x ↦ Prod.ext (funext fun w ↦ by simp [mul_left_comm])
+          (funext fun w ↦ by simp [Complex.real_smul, mul_left_comm])
+        left_inv := fun x ↦ Prod.ext (funext fun w ↦ inv_mul_cancel_left₀ (ha w) _)
+          (funext fun w ↦ inv_mul_cancel_left₀ (hb w) _)
+        right_inv := fun x ↦ Prod.ext (funext fun w ↦ mul_inv_cancel_left₀ (ha w) _)
+          (funext fun w ↦ mul_inv_cancel_left₀ (hb w) _) }
+    let D : ArchCoordinates ≃L[ℝ] ArchCoordinates := L.toContinuousLinearEquiv
+    have hD (x : ArchCoordinates) : D x = (fun w ↦ a w * x.1 w, fun w ↦ b w * x.2 w) := rfl
+    have hasm (x : ArchCoordinates) : u.1 * assemble(r, c, x) = assemble(r, c, D x) := by
+      funext w
+      change u.1 w * _ = _
+      by_cases hw : w.IsReal
+      · simp only [hw, ↓reduceDIte, hD, a, map_mul, RingEquiv.symm_apply_apply]
+      · simp only [hw, ↓reduceDIte, hD, b, map_mul, RingEquiv.symm_apply_apply]
+    simp only [Submodule.mem_iInf] at hflat ⊢
+    intro y
+    have hy := hflat (u.2 * y)
+    simp only [Submodule.mem_comap, Submodule.mem_map] at hy ⊢
+    obtain ⟨h, hh, hfun⟩ := hy
+    refine ⟨SchwartzMap.compCLMOfContinuousLinearEquiv ℂ D h, ?_, ?_⟩
+    · simp only [archimedeanFlatSchwartz, Submodule.mem_iInf, LinearMap.mem_ker,
+        IsLinearMap.mk'_apply] at hh ⊢
+      rintro ⟨x, hx⟩ n v
+      have hwall : (∃ i, (D x).1 i = 0) ∨ (∃ j, (D x).2 j = 0) := by
+        rcases hx with ⟨i, hi⟩ | ⟨j, hj⟩
+        · exact Or.inl ⟨i, by simp [hD, hi]⟩
+        · exact Or.inr ⟨j, by simp [hD, hj]⟩
+      have hcomp := D.toContinuousLinearMap.iteratedFDeriv_comp_right (h.smooth ⊤) x
+        (i := n) (mod_cast le_top)
+      change iteratedFDeriv ℝ n ((h : ArchCoordinates → ℂ) ∘ D) x v = 0
+      erw [hcomp]
+      exact hh ⟨D x, hwall⟩ n (fun i ↦ D (v i))
+    · funext x
+      have e := congrFun hfun (D x)
+      refine e.trans ?_
+      change f (Multiplicative.ofAdd (assemble(r, c, D x), u.2 * y)) =
+        f (Multiplicative.ofAdd (u * (assemble(r, c, x), y)))
+      rw [← hasm]
+      rfl
 
 /-- Paper: Lemma 5.3.4.2(1), p. 260.
 The polar-free subspace is independent of the archimedean field identifications. -/
