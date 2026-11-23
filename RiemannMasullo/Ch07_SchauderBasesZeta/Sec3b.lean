@@ -1,6 +1,8 @@
 module
 
+import all RiemannMasullo.Ch05_ThetaZSpaces.Sec1
 import all RiemannMasullo.Ch05_ThetaZSpaces.Sec2
+import all RiemannMasullo.Ch07_SchauderBasesZeta.Sec2
 
 public import RiemannMasullo.Ch07_SchauderBasesZeta.Sec3a
 import RiemannMasullo.ForMathlib.NumberTheory.NumberField.Completion.FinitePlace
@@ -795,7 +797,42 @@ theorem mem_sLocalGammaEntireSubmodule (ω : PontryaginDual J₁(S))
     x ∈ Γker(ω) ↔
       ∀ c : Xₛ, onComponent(c, ω) →
         0 ≤ meromorphicOrderAt (fun z : ℂ ↦ sLocalIdelicZFunction (F := F) (S := S) f (shift(c, z))) 0 :=
-  by sorry
+  by
+  -- A germ with no pole has vanishing polar Laurent coefficients.
+  have hres (Z : ℂ → ℂ) (hZ : MeromorphicAt Z 0) (h0 : 0 ≤ meromorphicOrderAt Z 0) (N : ℕ)
+      (hN : 0 < N) : complexResidue (fun z ↦ Z z / z ^ (-(N : ℤ) + 1)) 0 = 0 := by
+    have ha := hZ.meromorphicOrderAt_nonneg_iff_analyticAt_toMeromorphicNFAt.1 h0
+    have he : (fun z ↦ Z z / z ^ (-(N : ℤ) + 1)) =ᶠ[𝓝[≠] (0 : ℂ)]
+        (fun z ↦ z ^ N * toMeromorphicNFAt Z 0 z / (z - 0)) := by
+      filter_upwards [hZ.eq_nhdsNE_toMeromorphicNFAt, self_mem_nhdsWithin] with z hz hz0
+      have hz0' : z ≠ 0 := hz0
+      rw [hz, sub_zero, zpow_add₀ hz0', zpow_one, zpow_neg, zpow_natCast]
+      field_simp
+    have hg : AnalyticAt ℂ (fun z ↦ z ^ N * toMeromorphicNFAt Z 0 z) 0 :=
+      (analyticAt_id.pow N).mul ha
+    rw [mem_sLocalThetaPoleBound_iff_residue_congr he, complexResidue_div_sub hg]
+    simp [zero_pow hN.ne']
+  change x.val ∈ noPoles(ω) ↔ _
+  rw [← _hf]
+  constructor
+  · intro hx c hc
+    rw [← sLocalPolarMultiplicity_eq_zero_iff]
+    by_contra hne
+    have hN : 0 < sLocalPolarMultiplicity f c := Nat.pos_of_ne_zero hne
+    let T := sLocalThetaPrincipalPartCoeff ω c hc (sLocalPolarMultiplicity f c)
+    have hle : noPoles(ω) ≤ LinearMap.ker (T : Θ(S, ω) →ₗ[ℂ] ℂ) := by
+      refine Submodule.span_le.2 ?_
+      rintro _ ⟨g, rfl, hg⟩
+      change complexResidue (fun z ↦ sLocalIdelicZFunction g (shift(c, z)) /
+        z ^ (-((sLocalPolarMultiplicity f c : ℕ) : ℤ) + 1)) 0 = 0
+      exact hres _ (sLocalZ_centered g c).1
+        ((sLocalPolarMultiplicity_eq_zero_iff g c).1 (Nat.le_zero.1 (hg c hc))) _ hN
+    have h0 : complexResidue (fun z ↦ sLocalIdelicZFunction f (shift(c, z)) /
+        z ^ (-((sLocalPolarMultiplicity f c : ℕ) : ℤ) + 1)) 0 = 0 := hle hx
+    exact mem_sLocalThetaPoleBound_iff_leading (sLocalZ_centered f c).1 hN rfl h0
+  · intro h
+    exact Submodule.subset_span
+      ⟨f, rfl, fun c hc ↦ ((sLocalPolarMultiplicity_eq_zero_iff f c).2 (h c hc)).le⟩
 
 /-- Paper: Notation 7.3.4.1, p. 364.
 The archimedean polar quotient is Fréchet. -/
